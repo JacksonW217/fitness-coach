@@ -29,8 +29,11 @@ export function startOfWeek(d: Date = new Date()): Date {
 
 export const roundTo = (n: number, step = 5) => Math.round(n / step) * step;
 
-export const fmtNum = (n: number, digits = 0) =>
-  n.toLocaleString('en-US', { maximumFractionDigits: digits, minimumFractionDigits: 0 });
+export const fmtNum = (n: number, digits = 0) => {
+  // Values that round to zero print as "0", never "-0".
+  const v = Math.abs(n) < 0.5 * 10 ** -digits ? 0 : n;
+  return v.toLocaleString('en-US', { maximumFractionDigits: digits, minimumFractionDigits: 0 });
+};
 
 export function fmtHeight(inches: number): string {
   const ft = Math.floor(inches / 12);

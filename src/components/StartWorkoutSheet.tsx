@@ -27,6 +27,7 @@ export function StartWorkoutSheet({
   programId,
   defaultDayId,
   optimizeFirst,
+  defaultFeeling = 'normal',
 }: {
   open: boolean;
   onClose: () => void;
@@ -34,6 +35,7 @@ export function StartWorkoutSheet({
   programId: string;
   defaultDayId?: string;
   optimizeFirst?: boolean;
+  defaultFeeling?: Feeling;
 }) {
   const nav = useNavigate();
   const profile = useProfile();
@@ -51,9 +53,10 @@ export function StartWorkoutSheet({
       setPreview(false);
       setPermanent(false);
       setDayId(defaultDayId);
+      setFeeling(defaultFeeling);
       if (optimizeFirst && profile) setMinutes(profile.sessionMinutes > 45 ? 45 : 30);
     }
-  }, [open, defaultDayId, optimizeFirst, profile]);
+  }, [open, defaultDayId, optimizeFirst, profile, defaultFeeling]);
 
   const result = useMemo(
     () => (chosen ? optimizeDay({ day: chosen, minutes, feeling, soreMuscles: feeling === 'sore' ? sore : [], profile: profile ?? undefined }) : undefined),

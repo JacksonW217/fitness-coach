@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { dayMeta } from '../components/DayList';
+import { ProgramReviewSection } from '../components/ProgramReviewCard';
 import { ListRow, Options, Page, Section, Sheet } from '../components/ui';
 import { db } from '../db';
 import { generateProgram } from '../engine/generator';
@@ -43,6 +44,8 @@ export default function ProgramScreen() {
         )}
         <button className="link-btn" style={{ fontSize: 15, marginTop: 6 }} onClick={() => setWhy(!why)}>{why ? 'Less' : 'Why this program?'}</button>
       </div>
+
+      <ProgramReviewSection />
 
       <Section title="Week">
         <div className="list">

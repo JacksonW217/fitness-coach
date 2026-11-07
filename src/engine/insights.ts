@@ -5,7 +5,8 @@
  */
 import { getExercise, MUSCLE_LABEL } from '../data/exercises';
 import { dateKey, daysBetween, fmtNum, parseDateKey, startOfWeek } from '../lib/util';
-import type { BodyWeight, Muscle, Profile, Program, Session, Weekday } from '../types';
+import type { BodyWeight, CheckIn, Muscle, Profile, Program, Session, Weekday } from '../types';
+import { averageReadiness } from './recovery';
 import { analyzeTrend, exposuresFor, recommend, sessionPRs } from './progression';
 
 export interface Insight {
@@ -63,8 +64,8 @@ export function weightTrend(entries: BodyWeight[]) {
   return { latest: last.lbs, weeklyChange, avgThisWeek: thisWeek.length ? mean(thisWeek) : undefined };
 }
 
-export function buildInsights(args: { profile: Profile; program?: Program; sessions: Session[]; weights: BodyWeight[] }): Insight[] {
-  const { profile, program, sessions, weights } = args;
+export function buildInsights(args: { profile: Profile; program?: Program; sessions: Session[]; weights: BodyWeight[]; checkins?: CheckIn[] }): Insight[] {
+  const { profile, program, sessions, weights, checkins = [] } = args;
   const done = sessions.filter((s) => s.status === 'done').sort((a, b) => b.startedAt.localeCompare(a.startedAt));
   const out: Insight[] = [];
 
@@ -166,8 +167,13 @@ export function buildInsights(args: { profile: Profile; program?: Program; sessi
       out.push({ id: 'bw', tone: 'progress', title: 'Body weight on track', body: `Weekly average ${wt.weeklyChange >= 0 ? '+' : ''}${fmtNum(wt.weeklyChange, 1)} lb, in line with your ${g === 'lose' ? 'fat-loss' : g === 'gain' ? 'muscle-gain' : 'maintenance'} goal.` });
   }
 
-  if (profile.sleepHours && profile.sleepHours < 6.5)
-    out.push({ id: 'sleep', tone: 'info', title: 'Sleep is a lever', body: `You reported ~${profile.sleepHours} h of sleep. Getting closer to 7–9 h is one of the most reliable ways to recover and progress faster.` });
+  const recentSleep = checkins.filter((c) => daysBetween(c.date + 'T12:00:00', new Date()) <= 7);
+  const sleepAvg = recentSleep.length >= 3 ? recentSleep.reduce((a, c) => a + c.sleepHours, 0) / recentSleep.length : profile.sleepHours;
+  if (sleepAvg && sleepAvg < 6.5)
+    out.push({ id: 'sleep', tone: 'info', title: 'Sleep is a lever', body: `${recentSleep.length >= 3 ? `Your check-ins average ${fmtNum(sleepAvg, 1)} h of sleep this week.` : `You reported ~${profile.sleepHours} h of sleep.`} Getting closer to 7–9 h is one of the most reliable ways to recover and progress faster.` });
+  const ready = averageReadiness(checkins, 7);
+  if (ready && ready.n >= 3 && ready.avg < 50)
+    out.push({ id: 'readiness', tone: 'caution', title: `Low readiness this week (${ready.avg}/100)`, body: `Across ${ready.n} check-ins, sleep, energy, soreness and stress point to under-recovery. Keep loads steady and prioritize sleep before adding volume.` });
 
   // Recent PRs
   const last = done[0];

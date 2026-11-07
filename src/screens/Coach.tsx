@@ -6,7 +6,7 @@ import { db } from '../db';
 import { getExercise, MUSCLE_LABEL } from '../data/exercises';
 import { buildCoachPrompt, extractChanges, PROJECT_INSTRUCTIONS, resolveChanges, TOPICS, type CoachTopic, type ResolvedChange } from '../engine/coach';
 import { claudeUrl, clearPending, copyNow, getPending, getProjectUrl, looksLikeOurPrompt, setPending, setProjectUrl } from '../lib/coachBridge';
-import { logChange, useActiveProgram, useCoachNotes, useMeasurements, useProfile, useSessions, useWeights } from '../lib/data';
+import { logChange, useActiveProgram, useCheckins, useCoachNotes, useFood, useMeasurements, useProfile, useSessions, useWeights } from '../lib/data';
 import { fmtDate, nowISO, uid } from '../lib/util';
 import type { CoachNote, Muscle } from '../types';
 
@@ -17,6 +17,8 @@ export default function Coach() {
   const weights = useWeights() ?? [];
   const measurements = useMeasurements() ?? [];
   const notes = useCoachNotes() ?? [];
+  const food = useFood() ?? [];
+  const checkins = useCheckins() ?? [];
   const [params, setParams] = useSearchParams();
   const [setupOpen, setSetupOpen] = useState(false);
   const [picker, setPicker] = useState<CoachTopic | 'custom' | null>(null);
@@ -36,7 +38,7 @@ export default function Coach() {
 
   /** One tap: copy data + question, open Claude, remember what we asked. */
   const ask = (question: string, topicId: string) => {
-    const text = buildCoachPrompt({ question, profile, program: program ?? undefined, sessions, weights, measurements, notes });
+    const text = buildCoachPrompt({ question, profile, program: program ?? undefined, sessions, weights, measurements, notes, food, checkins });
     copyNow(text);
     window.open(claudeUrl(), '_blank');
     const id = uid();

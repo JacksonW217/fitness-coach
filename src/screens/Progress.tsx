@@ -7,12 +7,14 @@ import { db } from '../db';
 import { getExercise, MUSCLE_LABEL } from '../data/exercises';
 import { weeklySetsByMuscle } from '../engine/insights';
 import { analyzeTrend, bestE1rm, exposuresFor, sessionVolume, type Trend } from '../engine/progression';
-import { useMeasurements, useProfile, useSessions, useWeights } from '../lib/data';
+import { useCheckins, useMeasurements, useProfile, useSessions, useWeights } from '../lib/data';
+import { averageReadiness, readinessLabel, readinessScore } from '../engine/recovery';
+import { CheckInSheet } from '../components/CheckInSheet';
 import { dateKey, fmtDate, fmtDuration, fmtNum, parseDateKey, startOfWeek, uid } from '../lib/util';
 import type { BodyWeight, MeasurementKey, Muscle, Session } from '../types';
 import { MEASURE_LABEL } from './profileSections';
 
-type Tab = 'body' | 'strength' | 'workouts';
+type Tab = 'body' | 'strength' | 'workouts' | 'recovery';
 
 export default function Progress() {
   const [params, setParams] = useSearchParams();
@@ -27,6 +29,7 @@ export default function Progress() {
           { value: 'body', label: 'Body' },
           { value: 'strength', label: 'Strength' },
           { value: 'workouts', label: 'Workouts' },
+          { value: 'recovery', label: 'Recovery' },
         ]}
         value={tab}
         onChange={(v) => setParams({ tab: v }, { replace: true })}
@@ -34,6 +37,7 @@ export default function Progress() {
       {tab === 'body' && <BodyTab />}
       {tab === 'strength' && <StrengthTab />}
       {tab === 'workouts' && <WorkoutsTab />}
+      {tab === 'recovery' && <RecoveryTab />}
     </Page>
   );
 }
@@ -317,6 +321,53 @@ function WorkoutsTab() {
           ))}
         </div>
       </Section>
+    </>
+  );
+}
+
+function RecoveryTab() {
+  const checkins = useCheckins() ?? [];
+  const profile = useProfile();
+  const [open, setOpen] = useState(false);
+  const today = checkins.find((c) => c.date === dateKey());
+  const recent = checkins.slice(-60);
+  const wk = averageReadiness(checkins, 7);
+  const prev = averageReadiness(checkins.filter((c) => c.date <= dateKey(new Date(Date.now() - 7 * 86400000))), 7, new Date(Date.now() - 7 * 86400000));
+  const sleep7 = checkins.filter((c) => c.date > dateKey(new Date(Date.now() - 7 * 86400000)));
+  return (
+    <>
+      <Section title="Readiness" action={<button className="link-btn" style={{ fontSize: 15 }} onClick={() => setOpen(true)}>{today ? 'Edit today' : 'Check in'}</button>}>
+        <div className="card">
+          <div className="grid-2">
+            <div><div className="foot">7-day average</div><div className="big-num">{wk ? wk.avg : '—'}</div>{wk && prev && <div className="foot">{wk.avg - prev.avg >= 0 ? '+' : ''}{wk.avg - prev.avg} vs prior week</div>}</div>
+            <div><div className="foot">Avg sleep (7 days)</div><div className="big-num">{sleep7.length ? fmtNum(sleep7.reduce((a, c) => a + c.sleepHours, 0) / sleep7.length, 1) : '—'}<span className="sub" style={{ fontSize: 17 }}> h</span></div></div>
+          </div>
+          {recent.length >= 2 ? (
+            <div style={{ marginTop: 14 }}>
+              <LineChart points={recent.map((c) => ({ x: c.date, y: readinessScore(c) }))} unit="" digits={0} height={150} />
+            </div>
+          ) : (
+            <div className="foot" style={{ marginTop: 12 }}>Check in on a couple of days to see your trend. It takes about 10 seconds.</div>
+          )}
+        </div>
+      </Section>
+      {recent.length >= 2 && (
+        <Section title="Sleep">
+          <div className="card"><LineChart points={recent.map((c) => ({ x: c.date, y: c.sleepHours }))} unit="h" height={130} /></div>
+        </Section>
+      )}
+      {checkins.length > 0 && (
+        <Section title="Check-ins">
+          <div className="list">
+            {[...checkins].reverse().slice(0, 30).map((c) => {
+              const sc = readinessScore(c);
+              const l = readinessLabel(sc);
+              return <ListRow key={c.id} title={fmtDate(c.date, { weekday: 'short', month: 'short', day: 'numeric' })} subtitle={`${c.sleepHours} h sleep · energy ${c.energy}/5 · soreness ${c.soreness}/5 · stress ${c.stress}/5`} right={<span className={`badge ${l.tone}`}>{sc}</span>} />;
+            })}
+          </div>
+        </Section>
+      )}
+      <CheckInSheet open={open} onClose={() => setOpen(false)} existing={today} defaultSleep={profile?.sleepHours ?? 7} />
     </>
   );
 }

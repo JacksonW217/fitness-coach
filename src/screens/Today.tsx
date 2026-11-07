@@ -1,5 +1,10 @@
-import { Activity, AlertTriangle, BarChart3, CalendarDays, Dumbbell, Info, MessageCircle, Play, Scale, Sparkles, TrendingUp, Trophy } from 'lucide-react';
-import { useMemo, useState, type ReactNode } from 'react';
+import { Activity, AlertTriangle, Apple, BarChart3, CalendarDays, ClipboardCheck, Dumbbell, Info, MessageCircle, Play, Scale, Sparkles, TrendingUp, Trophy } from 'lucide-react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { CheckInSheet } from '../components/CheckInSheet';
+import { useProposals } from '../components/ProgramReviewCard';
+import { targetsFor, totals } from '../engine/nutrition';
+import { readinessLabel, readinessScore, suggestedFeeling } from '../engine/recovery';
+import { runAutoAdapt } from '../lib/adapt';
 import { useNavigate } from 'react-router-dom';
 import { dayMeta } from '../components/DayList';
 import { LineChart } from '../components/LineChart';
@@ -9,7 +14,7 @@ import { Bar, Page, Section } from '../components/ui';
 import { getExercise } from '../data/exercises';
 import { buildInsights, consistency, nextTrainingDay, recentPRs, todaysDay, weekStats, weightTrend, type Insight } from '../engine/insights';
 import { bestE1rm, exposuresFor, sessionVolume } from '../engine/progression';
-import { useActiveProgram, useActiveSession, useProfile, useSessions, useWeights } from '../lib/data';
+import { useActiveProgram, useActiveSession, useCheckins, useFood, useProfile, useSessions, useWeights } from '../lib/data';
 import { dateKey, fmtDate, fmtDuration, fmtNum, startOfWeek, WEEKDAYS, WEEKDAYS_LONG } from '../lib/util';
 import type { Profile, Program, Session, Weekday } from '../types';
 
@@ -25,12 +30,20 @@ export default function Today() {
   const [weightOpen, setWeightOpen] = useState(false);
   const [startOpen, setStartOpen] = useState(false);
   const [optimizeMode, setOptimizeMode] = useState(false);
+  const [checkinOpen, setCheckinOpen] = useState(false);
+  const checkins = useCheckins() ?? [];
+  const food = useFood() ?? [];
+  const review = useProposals();
+  useEffect(() => {
+    runAutoAdapt();
+  }, []);
 
   const done = useMemo(() => sessions.filter((s) => s.status === 'done'), [sessions]);
-  const insights = useMemo(() => (profile ? buildInsights({ profile, program: program ?? undefined, sessions, weights }) : []), [profile, program, sessions, weights]);
+  const insights = useMemo(() => (profile ? buildInsights({ profile, program: program ?? undefined, sessions, weights, checkins }) : []), [profile, program, sessions, weights, checkins]);
   if (!profile || !program) return null;
 
   const now = new Date();
+  const todayCheckin = checkins.find((c) => c.date === dateKey());
   const today = todaysDay(program);
   const next = nextTrainingDay(program);
   const doneToday = done.find((s) => dateKey(new Date(s.startedAt)) === dateKey());
@@ -105,6 +118,16 @@ export default function Today() {
         </div>
       )}
 
+      <TodayStrip
+        checkin={todayCheckin}
+        onCheckin={() => setCheckinOpen(true)}
+        proposals={review?.proposals.length ?? 0}
+        onReview={() => nav('/program')}
+        nutrition={profile.trackMacros ? { eaten: totals(food.filter((f) => f.date === dateKey())), target: targetsFor(profile, weights.at(-1)?.lbs) } : undefined}
+        onNutrition={() => nav('/nutrition')}
+        deloadUntil={program.deloadUntil && program.deloadUntil >= dateKey() ? program.deloadUntil : undefined}
+      />
+
       <Section title="Coach">
         <div className="card">
           {insights.slice(0, 5).map((i) => (
@@ -139,13 +162,16 @@ export default function Today() {
           <QuickAction icon={<Sparkles size={20} />} label="Optimize today’s workout" onClick={() => (active ? nav('/workout') : (setOptimizeMode(true), setStartOpen(true)))} />
           <QuickAction icon={<MessageCircle size={20} />} label="Talk to coach" onClick={() => nav('/coach')} />
           <QuickAction icon={<Scale size={20} />} label="Log weight" onClick={() => setWeightOpen(true)} />
+          <QuickAction icon={<Apple size={20} />} label="Log nutrition" onClick={() => nav('/nutrition')} />
+          <QuickAction icon={<ClipboardCheck size={20} />} label="Daily check-in" onClick={() => setCheckinOpen(true)} />
           <QuickAction icon={<BarChart3 size={20} />} label="View progress" onClick={() => nav('/progress')} />
           <QuickAction icon={<CalendarDays size={20} />} label="Edit program" onClick={() => nav('/program')} />
         </div>
       </Section>
 
       <LogWeightSheet open={weightOpen} onClose={() => setWeightOpen(false)} last={weights.at(-1)?.lbs ?? profile.weightLbs} />
-      <StartWorkoutSheet open={startOpen} optimizeFirst={optimizeMode} onClose={() => setStartOpen(false)} days={program.days} programId={program.id} defaultDayId={today?.id ?? next?.day.id} />
+      <CheckInSheet open={checkinOpen} onClose={() => setCheckinOpen(false)} existing={todayCheckin} defaultSleep={profile.sleepHours} />
+      <StartWorkoutSheet open={startOpen} optimizeFirst={optimizeMode} defaultFeeling={suggestedFeeling(todayCheckin)} onClose={() => setStartOpen(false)} days={program.days} programId={program.id} defaultDayId={today?.id ?? next?.day.id} />
     </Page>
   );
 }
@@ -305,5 +331,72 @@ function Milestones({ profile, sessions, weights }: { profile: Profile; sessions
         </div>
       </div>
     </Section>
+  );
+}
+
+function TodayStrip({
+  checkin,
+  onCheckin,
+  proposals,
+  onReview,
+  nutrition,
+  onNutrition,
+  deloadUntil,
+}: {
+  checkin?: import('../types').CheckIn;
+  onCheckin: () => void;
+  proposals: number;
+  onReview: () => void;
+  nutrition?: { eaten: ReturnType<typeof totals>; target: import('../types').NutritionTargets };
+  onNutrition: () => void;
+  deloadUntil?: string;
+}) {
+  const score = checkin ? readinessScore(checkin) : undefined;
+  const l = score !== undefined ? readinessLabel(score) : undefined;
+  return (
+    <div className="stack" style={{ marginTop: 12 }}>
+      {deloadUntil && (
+        <div className="card outline sub" style={{ fontSize: 14 }}>
+          <b style={{ color: 'var(--ink)' }}>Deload week</b> through {fmtDate(deloadUntil)} — lighter loads, fewer sets. Recovery is the goal.
+        </div>
+      )}
+      <div className="grid-2">
+        <button className="card" style={{ border: 'none', textAlign: 'left', margin: 0 }} onClick={onCheckin}>
+          <div className="foot">Readiness</div>
+          {score !== undefined ? (
+            <>
+              <div className="mid-num">{score}<span className="foot">/100</span></div>
+              <div className="foot">{l!.label}</div>
+            </>
+          ) : (
+            <>
+              <div style={{ fontWeight: 600, marginTop: 2 }}>Check in</div>
+              <div className="foot">10 seconds</div>
+            </>
+          )}
+        </button>
+        {nutrition ? (
+          <button className="card" style={{ border: 'none', textAlign: 'left', margin: 0 }} onClick={onNutrition}>
+            <div className="foot">Calories</div>
+            <div className="mid-num">{fmtNum(nutrition.eaten.kcal)}<span className="foot">/{fmtNum(nutrition.target.kcal)}</span></div>
+            <div className="foot">{fmtNum(nutrition.eaten.protein)} / {nutrition.target.protein} g protein</div>
+          </button>
+        ) : (
+          <button className="card" style={{ border: 'none', textAlign: 'left', margin: 0 }} onClick={onReview}>
+            <div className="foot">Program review</div>
+            <div className="mid-num">{proposals}</div>
+            <div className="foot">{proposals === 1 ? 'suggestion' : 'suggestions'}</div>
+          </button>
+        )}
+      </div>
+      {nutrition && proposals > 0 && (
+        <button className="card ink" style={{ border: 'none', textAlign: 'left', width: '100%', margin: 0 }} onClick={onReview}>
+          <div className="row between">
+            <div><div style={{ fontWeight: 600 }}>{proposals} program {proposals === 1 ? 'suggestion' : 'suggestions'}</div><div className="sub" style={{ fontSize: 14 }}>Based on your last few weeks</div></div>
+            <span className="btn white sm">Review</span>
+          </div>
+        </button>
+      )}
+    </div>
   );
 }

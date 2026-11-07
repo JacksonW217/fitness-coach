@@ -15,6 +15,7 @@ import ExerciseDetail from './screens/ExerciseDetail';
 import ProfileScreen from './screens/Profile';
 import ProgramReview from './screens/ProgramReview';
 import Coach from './screens/Coach';
+import Nutrition from './screens/Nutrition';
 
 const TABS = [
   { to: '/', label: 'Today', icon: Sun },
@@ -83,6 +84,7 @@ export default function App() {
             <Route path="/progress/exercise/:id" element={<ExerciseDetail />} />
             <Route path="/profile" element={<ProfileScreen />} />
             <Route path="/coach" element={<Coach />} />
+            <Route path="/nutrition" element={<Nutrition />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </>
         )}

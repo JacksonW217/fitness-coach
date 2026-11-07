@@ -3,7 +3,7 @@ import { db } from '../db';
 import { getExercise } from '../data/exercises';
 import { exposuresFor, recommend, warmupSets, type Readiness } from '../engine/progression';
 import type { BodyWeight, LoggedSet, Program, ProgramChange, ProgramDay, Session, SessionExercise } from '../types';
-import { dateKey, nowISO, uid } from './util';
+import { dateKey, nowISO, roundTo, uid } from './util';
 
 // ── Hooks ────────────────────────────────────────────────────────────
 export const useProfile = () => useLiveQuery(() => db.profile.get('me'), [], null);
@@ -12,6 +12,9 @@ export const useSessions = () => useLiveQuery(() => db.sessions.orderBy('started
 export const useActiveSession = () => useLiveQuery(() => db.sessions.where('status').equals('active').first(), [], null);
 export const useWeights = () => useLiveQuery(() => db.bodyweights.orderBy('date').toArray(), [], null);
 export const useMeasurements = () => useLiveQuery(() => db.measurements.orderBy('date').toArray(), [], null);
+export const useFood = () => useLiveQuery(() => db.food.orderBy('date').toArray(), [], null);
+export const useCheckins = () => useLiveQuery(() => db.checkins.orderBy('date').toArray(), [], null);
+export const useAdaptRecords = () => useLiveQuery(() => db.adaptations.toArray(), [], null);
 export const useCoachNotes = () => useLiveQuery(() => db.coach.orderBy('at').reverse().toArray(), [], null);
 export const useChanges = (programId?: string) =>
   useLiveQuery(() => (programId ? db.changes.where('programId').equals(programId).reverse().sortBy('at') : db.changes.orderBy('at').reverse().toArray()), [programId], null);
@@ -41,16 +44,19 @@ export async function finishedSessions(): Promise<Session[]> {
 }
 
 /** Build a session from a program day using real history for targets. */
-export function buildSession(day: ProgramDay, programId: string | undefined, history: Session[], readiness: Readiness = 'normal'): Session {
+export function buildSession(day: ProgramDay, programId: string | undefined, history: Session[], readiness: Readiness = 'normal', deload = false): Session {
   const exercises: SessionExercise[] = day.exercises.map((pe) => {
     const def = getExercise(pe.exerciseId);
-    const rec = recommend(def, pe, exposuresFor(pe.exerciseId, history), readiness);
+    const rec = recommend(def, pe, exposuresFor(pe.exerciseId, history), deload ? 'low' : readiness);
     // Load changes need confirmation: until confirmed, target the previous weight.
-    const pendingChange = rec.needsConfirm && rec.previousWeight !== undefined;
-    const work: LoggedSet[] = rec.targets.map((t) => ({
+    const pendingChange = !deload && rec.needsConfirm && rec.previousWeight !== undefined;
+    // Deload: ~40% fewer sets, ~10% lighter.
+    const targets = deload ? rec.targets.slice(0, Math.max(2, Math.round(rec.targets.length * 0.6))) : rec.targets;
+    const lighten = (w?: number) => (deload && w ? Math.max(0, roundTo(w * 0.9, 5)) : w);
+    const work: LoggedSet[] = targets.map((t) => ({
       id: uid(),
       kind: 'work',
-      targetWeight: pendingChange ? rec.previousWeight : t.weight,
+      targetWeight: lighten(pendingChange ? rec.previousWeight : (t.weight ?? rec.previousWeight)),
       targetReps: pendingChange && rec.kind === 'increase' ? pe.repMax : t.reps,
       status: 'pending',
     }));
@@ -66,7 +72,7 @@ export function buildSession(day: ProgramDay, programId: string | undefined, his
       repMax: pe.repMax,
       restSec: pe.restSec,
       sets: [...warm, ...work],
-      recommendation: rec.message,
+      recommendation: deload ? 'Deload week: lighter loads and fewer sets to shed fatigue. Stop each set with 3+ reps in reserve.' : rec.message,
       ...(pendingChange ? { pending: { kind: rec.kind, from: rec.previousWeight, to: rec.suggestedWeight, reps: rec.targets[0]?.reps } } : {}),
     };
   });
@@ -79,13 +85,16 @@ export function buildSession(day: ProgramDay, programId: string | undefined, his
     status: 'active',
     pausedMs: 0,
     exercises,
+    ...(deload ? { deload: true } : {}),
   };
 }
 
 export async function startSession(day: ProgramDay, programId: string | undefined, readiness: Readiness = 'normal', feeling?: string, optimized?: Session['optimized']) {
   const existing = await db.sessions.where('status').equals('active').first();
   if (existing) return existing.id;
-  const s = buildSession(day, programId, await finishedSessions(), readiness);
+  const program = programId ? await db.programs.get(programId) : undefined;
+  const deload = !!program?.deloadUntil && program.deloadUntil >= dateKey();
+  const s = buildSession(day, programId, await finishedSessions(), readiness, deload);
   s.feeling = feeling;
   if (optimized) s.optimized = optimized;
   await db.sessions.add(s);

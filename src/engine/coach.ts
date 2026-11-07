@@ -5,7 +5,9 @@
  */
 import { EXERCISES, getExercise, hasEquipment, MUSCLE_LABEL, EQUIPMENT_LABEL } from '../data/exercises';
 import { fmtHeight, fmtNum, fmtDate, WEEKDAYS_LONG } from '../lib/util';
-import type { BodyWeight, CoachNote, Measurement, Muscle, Profile, Program, ProgramExercise, Session, Weekday } from '../types';
+import type { BodyWeight, CheckIn, CoachNote, FoodEntry, Measurement, Muscle, Profile, Program, ProgramExercise, Session, Weekday } from '../types';
+import { byDate, targetsFor } from './nutrition';
+import { averageReadiness, readinessScore } from './recovery';
 import { estimateMinutes } from './generator';
 import { buildInsights, consistency, recentPRs, weeklySetsByMuscle, weightTrend } from './insights';
 import { analyzeTrend, bestE1rm, exposuresFor, recommend } from './progression';
@@ -69,9 +71,11 @@ export function buildCoachPrompt(args: {
   weights: BodyWeight[];
   measurements: Measurement[];
   notes: CoachNote[];
+  food?: FoodEntry[];
+  checkins?: CheckIn[];
   now?: Date;
 }): string {
-  const { question, profile: p, program, sessions, weights, measurements, notes } = args;
+  const { question, profile: p, program, sessions, weights, measurements, notes, food = [], checkins = [] } = args;
   const now = args.now ?? new Date();
   const done = sessions.filter((s) => s.status === 'done').sort((a, b) => b.startedAt.localeCompare(a.startedAt));
   let out = '';
@@ -162,7 +166,28 @@ export function buildCoachPrompt(args: {
   const m = measurements.at(-1);
   if (m) out += line(`- Measurements (${fmtDate(m.date)}, inches): ${Object.entries(m.values).map(([k, v]) => `${k} ${v}`).join(', ')}${m.bodyFatPct ? `, body fat ${m.bodyFatPct}%` : ''}`);
 
-  const flags = buildInsights({ profile: p, program, sessions, weights }).filter((i) => i.id !== 'first');
+  const days = byDate(food);
+  const recentFood = [...days.entries()].filter(([k]) => k > new Date(now.getTime() - 7 * 86400000).toISOString().slice(0, 10));
+  out += line('');
+  out += line('## Nutrition');
+  const tg = targetsFor(p, weights.at(-1)?.lbs);
+  out += line(`- Targets${tg.custom ? ' (custom)' : ' (calculated)'}: ${tg.kcal} kcal, ${tg.protein} g protein, ${tg.carbs} g carbs, ${tg.fat} g fat`);
+  if (recentFood.length) {
+    const avg = (f: (t: { kcal: number; protein: number }) => number) => Math.round(recentFood.reduce((a, [, t]) => a + f(t), 0) / recentFood.length);
+    out += line(`- Last 7 days: logged ${recentFood.length}/7 days; average ${avg((t) => t.kcal)} kcal and ${avg((t) => t.protein)} g protein on logged days`);
+  } else out += line(`- ${p.trackMacros ? 'No food logged in the last 7 days.' : 'Not tracking food intake.'}`);
+
+  out += line('');
+  out += line('## Recovery');
+  const ready = averageReadiness(checkins, 7, now);
+  const last7 = checkins.filter((c) => c.date > new Date(now.getTime() - 7 * 86400000).toISOString().slice(0, 10));
+  if (ready) {
+    out += line(`- Readiness (0–100) 7-day average: ${ready.avg} from ${ready.n} check-ins; avg sleep ${fmtNum(last7.reduce((a, c) => a + c.sleepHours, 0) / Math.max(1, last7.length), 1)} h`);
+    out += line(`- Daily: ${last7.map((c) => `${fmtDate(c.date)} ${readinessScore(c)} (sleep ${c.sleepHours}h, energy ${c.energy}/5, soreness ${c.soreness}/5, stress ${c.stress}/5)`).join('; ')}`);
+  } else out += line('- No recovery check-ins in the last 7 days.');
+  if (program?.deloadUntil && program.deloadUntil >= now.toISOString().slice(0, 10)) out += line(`- Currently in a deload week through ${fmtDate(program.deloadUntil)}.`);
+
+  const flags = buildInsights({ profile: p, program, sessions, weights, checkins }).filter((i) => i.id !== 'first');
   if (flags.length) {
     out += line('');
     out += line('## What the app’s rule engine is flagging');

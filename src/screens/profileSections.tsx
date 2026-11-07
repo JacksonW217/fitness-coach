@@ -401,7 +401,7 @@ export function NutritionSection({ p, set }: SectionProps) {
       <div className="q row between">
         <div>
           <div style={{ fontWeight: 600 }}>Track calories and macros</div>
-          <div className="foot">Nutrition logging arrives in phase 3</div>
+          <div className="foot">Shows daily calorie & protein targets and logging on Today</div>
         </div>
         <Toggle on={p.trackMacros ?? false} onChange={(v) => set({ trackMacros: v })} />
       </div>

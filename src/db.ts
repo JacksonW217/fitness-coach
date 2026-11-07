@@ -1,5 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie';
-import type { BodyWeight, CoachNote, Measurement, Profile, Program, ProgramChange, Session } from './types';
+import type { AdaptRecord, BodyWeight, CheckIn, CoachNote, FoodEntry, Measurement, Profile, Program, ProgramChange, Session } from './types';
 
 export const db = new Dexie('forge') as Dexie & {
   profile: EntityTable<Profile, 'id'>;
@@ -9,6 +9,9 @@ export const db = new Dexie('forge') as Dexie & {
   bodyweights: EntityTable<BodyWeight, 'id'>;
   measurements: EntityTable<Measurement, 'id'>;
   coach: EntityTable<CoachNote, 'id'>;
+  food: EntityTable<FoodEntry, 'id'>;
+  checkins: EntityTable<CheckIn, 'id'>;
+  adaptations: EntityTable<AdaptRecord, 'key'>;
 };
 
 db.version(1).stores({
@@ -20,6 +23,7 @@ db.version(1).stores({
   measurements: 'id, date',
 });
 db.version(2).stores({ coach: 'id, at' });
+db.version(3).stores({ food: 'id, date', checkins: 'id, &date', adaptations: 'key' });
 
 /** Ask Safari not to evict our storage. Best-effort. */
 export async function requestPersistence() {
@@ -30,7 +34,7 @@ export async function requestPersistence() {
   }
 }
 
-const TABLES = ['profile', 'programs', 'changes', 'sessions', 'bodyweights', 'measurements', 'coach'] as const;
+const TABLES = ['profile', 'programs', 'changes', 'sessions', 'bodyweights', 'measurements', 'coach', 'food', 'checkins', 'adaptations'] as const;
 
 export async function exportAll() {
   const data: Record<string, unknown[]> = {};

@@ -56,7 +56,7 @@ export const topWeight = (x: Exposure) => Math.max(0, ...x.sets.map((s) => s.wei
 export function exposuresFor(exerciseId: string, sessions: Session[]): Exposure[] {
   const out: Exposure[] = [];
   for (const s of sessions) {
-    if (s.status !== 'done') continue;
+    if (s.status !== 'done' || s.deload) continue;
     for (const ex of s.exercises) {
       if (ex.exerciseId !== exerciseId) continue;
       const sets = ex.sets

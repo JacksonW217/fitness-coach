@@ -92,6 +92,9 @@ export interface Profile {
   recovery: 1 | 2 | 3 | 4 | 5;
   stress: 1 | 2 | 3 | 4 | 5;
   outsideActivity: 'sedentary' | 'light' | 'moderate' | 'high';
+  // Phase 3
+  nutritionTargets?: NutritionTargets;
+  adapt?: AdaptSettings;
 }
 
 export type MeasurementKey =
@@ -174,13 +177,15 @@ export interface Program {
   days: ProgramDay[];
   /** Day id trained on each weekday; null = rest. */
   schedule: Record<Weekday, string | null>;
+  /** Deload week in effect through this date (YYYY-MM-DD). */
+  deloadUntil?: string;
 }
 
 export interface ProgramChange {
   id: string;
   programId: string;
   at: string;
-  kind: 'created' | 'activated' | 'edit' | 'swap' | 'add' | 'remove' | 'reorder' | 'sets' | 'schedule' | 'coach' | 'optimize';
+  kind: 'created' | 'activated' | 'edit' | 'swap' | 'add' | 'remove' | 'reorder' | 'sets' | 'schedule' | 'coach' | 'optimize' | 'adapt' | 'auto';
   summary: string;
   reason?: string;
 }
@@ -226,6 +231,8 @@ export interface Session {
   notes?: string;
   feeling?: string;
   restEndsAt?: string; // running rest timer, survives reloads
+  /** Deload-week session; excluded from progression history. */
+  deload?: boolean;
   /** Set when the session was built by Optimize My Workout. */
   optimized?: { minutes?: number; feeling: string; changes: string[]; stimulusNote: string };
 }
@@ -252,4 +259,53 @@ export interface CoachNote {
   repliedAt?: string;
   applied?: string[]; // summaries of program changes applied from this reply
   appliedIdx?: number[]; // which proposed changes (by position) were applied
+}
+
+// ── Phase 3 ──────────────────────────────────────────────────────────
+export interface NutritionTargets {
+  kcal: number;
+  protein: number; // g
+  carbs: number; // g
+  fat: number; // g
+  custom: boolean; // true when the user overrode the calculated targets
+}
+
+export interface FoodEntry {
+  id: string;
+  date: string; // YYYY-MM-DD
+  at: string;
+  name: string;
+  kcal: number;
+  protein: number;
+  carbs?: number;
+  fat?: number;
+}
+
+export interface CheckIn {
+  id: string;
+  date: string; // YYYY-MM-DD, one per day
+  sleepHours: number;
+  sleepQuality: 1 | 2 | 3 | 4 | 5;
+  energy: 1 | 2 | 3 | 4 | 5;
+  soreness: 1 | 2 | 3 | 4 | 5; // 5 = very sore
+  stress: 1 | 2 | 3 | 4 | 5; // 5 = very stressed
+  note?: string;
+}
+
+export type AdaptCategory = 'volume' | 'exercise' | 'repRange' | 'deload' | 'nutrition' | 'structure';
+
+export interface AdaptSettings {
+  mode: 'recommend' | 'auto';
+  autoCategories: AdaptCategory[]; // never includes 'structure'
+  maxSetDelta: number; // max sets added/removed per exercise per change
+  maxCalorieDelta: number; // max kcal change per adjustment
+}
+
+/** Memory of what happened to each proposal, so it isn't nagged about. */
+export interface AdaptRecord {
+  key: string;
+  status: 'applied' | 'dismissed';
+  at: string;
+  auto?: boolean;
+  summary?: string;
 }

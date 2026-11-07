@@ -32,6 +32,9 @@ Open the Vercel URL in **Safari** → Share → **Add to Home Screen**.
 | `src/engine/insights.ts` | Dashboard coaching insights from real data |
 | `src/engine/optimizer.ts` | Optimize My Workout: time/readiness/soreness restructuring with explanations |
 | `src/engine/coach.ts` | Claude prompt builder, project instructions, change parser/validator |
+| `src/engine/adaptation.ts` | Program review: volume, stalls, deloads, consistency, session length, calories; auto-mode bounds |
+| `src/engine/nutrition.ts` | Calorie/macro targets (Mifflin-St Jeor), daily totals |
+| `src/engine/recovery.ts` | Daily check-in readiness score |
 | `src/data/exercises.ts` | Exercise library (equipment, stresses, technique cues) |
 | `src/screens/` | Onboarding, Today, Program, Workout, Progress, Profile |
 | `src/db.ts` | IndexedDB schema, backup/restore |
@@ -40,4 +43,4 @@ Open the Vercel URL in **Safari** → Share → **Add to Home Screen**.
 
 1. ✅ Onboarding, program generator, workout logging, progression engine, dashboard, body-weight tracking
 2. ✅ Coach tab (Claude Project bridge with history + approvable changes), Optimize My Workout
-3. Program adaptation recommendations, nutrition and recovery tracking
+3. ✅ Program review (recommend or bounded automatic mode, deload weeks), nutrition logging with targets, daily recovery check-ins
