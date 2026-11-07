@@ -98,12 +98,12 @@ export function LineChart({
         {smoothXY ? (
           <>
             {xy.map((p, i) => <circle key={i} cx={p[0]} cy={p[1]} r={2.5} fill="var(--ink-3)" />)}
-            <path d={line(smoothXY)} fill="none" stroke="var(--ink)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+            <path d={line(smoothXY)} fill="none" stroke="var(--accent)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
           </>
         ) : (
           <>
-            <path d={line(xy)} fill="none" stroke="var(--ink)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
-            {xy.length <= 24 && xy.map((p, i) => <circle key={i} cx={p[0]} cy={p[1]} r={3.5} fill="var(--ink)" stroke="var(--bg)" strokeWidth={2} />)}
+            <path d={line(xy)} fill="none" stroke="var(--accent)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+            {xy.length <= 24 && xy.map((p, i) => <circle key={i} cx={p[0]} cy={p[1]} r={3.5} fill="var(--accent)" stroke="var(--bg)" strokeWidth={2} />)}
           </>
         )}
         <text x={padL} y={height - 4} fontSize={11} fill="var(--ink-3)">{fmtDate(points[0].x)}</text>
@@ -111,7 +111,7 @@ export function LineChart({
         {h && (
           <g>
             <line x1={h[0]} x2={h[0]} y1={padT - 4} y2={height - padB} stroke="var(--ink-3)" strokeWidth={1} />
-            <circle cx={h[0]} cy={h[1]} r={5} fill="var(--ink)" stroke="var(--bg)" strokeWidth={2} />
+            <circle cx={h[0]} cy={h[1]} r={5} fill="var(--accent)" stroke="var(--bg)" strokeWidth={2} />
           </g>
         )}
       </svg>
@@ -136,7 +136,7 @@ export function Bars({ data, height = 120, unit = '' }: { data: { label: string;
             <div
               style={{
                 height: `${Math.max(d.value ? 3 : 0, (d.value / max) * 100)}%`,
-                background: hover === i ? 'var(--ink)' : d.value ? 'var(--ink)' : 'transparent',
+                background: hover === i ? 'var(--accent)' : d.value ? 'var(--accent)' : 'transparent',
                 opacity: hover === null || hover === i ? 1 : 0.35,
                 borderRadius: '4px 4px 0 0',
               }}

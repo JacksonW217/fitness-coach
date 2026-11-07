@@ -73,7 +73,7 @@ export default function Onboarding() {
       <div className="ob">
         <div className="ob-body">
           <div className="hero-mark">
-            <Dumbbell color="#fff" size={36} strokeWidth={2} />
+            <Dumbbell color="currentColor" size={36} strokeWidth={2} />
           </div>
           <h1 style={{ fontSize: 40 }}>Your personal coach.</h1>
           <p className="lead" style={{ fontSize: 19 }}>
@@ -173,7 +173,7 @@ function Summary({ p, onEdit }: { p: Draft; onEdit: (i: number) => void }) {
       <h1>Here’s what I heard.</h1>
       <p className="lead">Check it over. Tap any row to change it.</p>
       <div className="card ink">
-        <div className="eyebrow" style={{ color: 'rgba(255,255,255,0.6)' }}>Proposed plan</div>
+        <div className="eyebrow">Proposed plan</div>
         <div className="stack-sm" style={{ marginTop: 8 }}>
           {proposed.map((x) => (
             <div key={x}>{x}</div>

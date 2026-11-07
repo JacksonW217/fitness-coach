@@ -68,7 +68,7 @@ export default function Today() {
         <button className="card ink" style={{ width: '100%', textAlign: 'left', border: 'none', marginBottom: 12 }} onClick={() => nav('/workout')}>
           <div className="row between">
             <div>
-              <div className="eyebrow" style={{ color: 'rgba(255,255,255,0.6)' }}>{active.pausedAt ? 'Paused' : 'In progress'}</div>
+              <div className="eyebrow">{active.pausedAt ? 'Paused' : 'In progress'}</div>
               <div className="title" style={{ marginTop: 2 }}>{active.dayName}</div>
               <div className="sub">Started {fmtDuration(Date.now() - new Date(active.startedAt).getTime() - active.pausedMs)} ago</div>
             </div>
@@ -81,7 +81,7 @@ export default function Today() {
         <div className="card ink">
           {today ? (
             <>
-              <div className="eyebrow" style={{ color: 'rgba(255,255,255,0.6)' }}>
+              <div className="eyebrow">
                 Today · Day {position} of {trainingIds.length} · {program.split}
               </div>
               <div className="title" style={{ fontSize: 28, marginTop: 4 }}>{today.name}</div>
@@ -89,15 +89,15 @@ export default function Today() {
               <button className="sub" style={{ marginTop: 2, background: 'none', border: 'none', padding: 0, color: 'inherit', textDecoration: 'underline', textUnderlineOffset: 3 }} onClick={() => nav(`/program/day/${today.id}`)}>{dayMeta(today)}</button>
               {doneToday ? (
                 <div className="row" style={{ marginTop: 16, gap: 10 }}>
-                  <span className="badge" style={{ background: 'rgba(255,255,255,0.16)', color: '#fff' }}>✓ Completed</span>
+                  <span className="badge" style={{ background: 'rgba(255,255,255,0.18)', color: 'inherit' }}>✓ Completed</span>
                   <button className="btn white sm" onClick={() => nav(`/workout/${doneToday.id}/summary`)}>View summary</button>
                 </div>
               ) : (
                 <div className="btn-row" style={{ marginTop: 16 }}>
                   <button className="btn white" onClick={() => { setOptimizeMode(false); setStartOpen(true); }}>
-                    <Play size={18} fill="#000" /> Start
+                    <Play size={18} fill="currentColor" /> Start
                   </button>
-                  <button className="btn" style={{ background: 'rgba(255,255,255,0.14)' }} onClick={() => { setOptimizeMode(true); setStartOpen(true); }}>
+                  <button className="btn" style={{ background: 'rgba(255,255,255,0.18)', color: 'inherit' }} onClick={() => { setOptimizeMode(true); setStartOpen(true); }}>
                     <Sparkles size={18} /> Optimize
                   </button>
                 </div>
@@ -105,7 +105,7 @@ export default function Today() {
             </>
           ) : (
             <>
-              <div className="eyebrow" style={{ color: 'rgba(255,255,255,0.6)' }}>Today</div>
+              <div className="eyebrow">Today</div>
               <div className="title" style={{ fontSize: 28, marginTop: 4 }}>Rest & recover</div>
               <div className="sub" style={{ marginTop: 4 }}>
                 {next ? `Next: ${next.day.name} on ${WEEKDAYS_LONG[next.date.getDay()]}.` : ''} Light walking or mobility is a good idea on rest days.

@@ -476,7 +476,7 @@ function ExerciseCard({
       </div>
 
       {ex.pending && !ex.pending.resolved && (
-        <div className="rec" style={{ borderColor: 'var(--ink)', background: 'var(--bg)' }}>
+        <div className="rec" style={{ borderColor: 'var(--accent)', background: 'var(--bg)' }}>
           <div style={{ fontWeight: 600, marginBottom: 4 }}>
             {ex.pending.kind === 'increase' ? `Ready for ${ex.pending.to} lb?` : `Reset to ${ex.pending.to} lb?`}
           </div>
