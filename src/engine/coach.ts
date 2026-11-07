@@ -183,6 +183,9 @@ export function buildCoachPrompt(args: {
   }
 
   out += line('');
+  out += line('## How to answer');
+  out += line(PROJECT_INSTRUCTIONS.split('\n').slice(2).join('\n'));
+  out += line('');
   out += line('## My question');
   out += line(question);
   return out;

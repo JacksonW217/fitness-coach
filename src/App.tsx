@@ -1,6 +1,7 @@
 import { BarChart3, CalendarDays, CircleUserRound, MessageCircle, Sun } from 'lucide-react';
 import { useEffect } from 'react';
-import { Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom';
+import { Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { getPending } from './lib/coachBridge';
 import { useActiveProgram, useProfile } from './lib/data';
 import Onboarding from './screens/Onboarding';
 import Today from './screens/Today';
@@ -43,9 +44,21 @@ export default function App() {
   const program = useActiveProgram();
   const loc = useLocation();
 
+  const nav = useNavigate();
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [loc.pathname]);
+
+  // Coming back from the Claude app with a question pending → open it, ready to paste.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      const id = getPending();
+      if (id && !location.pathname.startsWith('/workout') && !location.pathname.startsWith('/onboarding')) nav(`/coach?note=${id}`);
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [nav]);
 
   if (profile === null || program === null) return <div className="app" />; // loading
   const onboarded = !!profile && !!program;

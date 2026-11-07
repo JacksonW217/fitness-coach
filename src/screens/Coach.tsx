@@ -1,33 +1,14 @@
 import { Check, ClipboardPaste, Copy, ExternalLink, MessageCircle } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Chips, Empty, ListRow, Page, Section, Sheet } from '../components/ui';
 import { db } from '../db';
 import { getExercise, MUSCLE_LABEL } from '../data/exercises';
 import { buildCoachPrompt, extractChanges, PROJECT_INSTRUCTIONS, resolveChanges, TOPICS, type CoachTopic, type ResolvedChange } from '../engine/coach';
+import { claudeUrl, clearPending, copyNow, getPending, getProjectUrl, looksLikeOurPrompt, setPending, setProjectUrl } from '../lib/coachBridge';
 import { logChange, useActiveProgram, useCoachNotes, useMeasurements, useProfile, useSessions, useWeights } from '../lib/data';
 import { fmtDate, nowISO, uid } from '../lib/util';
 import type { CoachNote, Muscle } from '../types';
-
-const SETUP_KEY = 'forge.coach.setup';
-const CLAUDE_URL = 'https://claude.ai/projects';
-
-async function copy(text: string) {
-  try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch {
-    // Fallback for older iOS
-    const ta = document.createElement('textarea');
-    ta.value = text;
-    ta.style.position = 'fixed';
-    ta.style.opacity = '0';
-    document.body.appendChild(ta);
-    ta.select();
-    const ok = document.execCommand('copy');
-    ta.remove();
-    return ok;
-  }
-}
 
 export default function Coach() {
   const profile = useProfile();
@@ -36,19 +17,37 @@ export default function Coach() {
   const weights = useWeights() ?? [];
   const measurements = useMeasurements() ?? [];
   const notes = useCoachNotes() ?? [];
-  const [setupDone, setSetupDone] = useState(() => localStorage.getItem(SETUP_KEY) === '1');
+  const [params, setParams] = useSearchParams();
   const [setupOpen, setSetupOpen] = useState(false);
-  const [topic, setTopic] = useState<CoachTopic | 'custom' | null>(null);
+  const [picker, setPicker] = useState<CoachTopic | 'custom' | null>(null);
   const [openNote, setOpenNote] = useState<string | null>(null);
-  const [copiedInstr, setCopiedInstr] = useState(false);
   const trained = useMemo(() => [...new Set(sessions.filter((s) => s.status === 'done').flatMap((s) => s.exercises.map((e) => e.exerciseId)))], [sessions]);
+
+  // Returning from Claude → jump straight to the conversation.
+  const noteParam = params.get('note');
+  useEffect(() => {
+    if (noteParam) {
+      setOpenNote(noteParam);
+      setParams({}, { replace: true });
+    }
+  }, [noteParam, setParams]);
 
   if (!profile) return null;
 
-  const makePrompt = (question: string) =>
-    buildCoachPrompt({ question, profile, program: program ?? undefined, sessions, weights, measurements, notes });
+  /** One tap: copy data + question, open Claude, remember what we asked. */
+  const ask = (question: string, topicId: string) => {
+    const text = buildCoachPrompt({ question, profile, program: program ?? undefined, sessions, weights, measurements, notes });
+    copyNow(text);
+    window.open(claudeUrl(), '_blank');
+    const id = uid();
+    setPending(id);
+    db.coach.add({ id, at: nowISO(), topic: topicId, question });
+    setPicker(null);
+  };
 
   const note = notes.find((n) => n.id === openNote);
+  const pendingId = getPending();
+  const hasProject = !!getProjectUrl();
 
   return (
     <Page>
@@ -56,35 +55,29 @@ export default function Coach() {
         <h1 className="large-title">Coach</h1>
       </div>
 
-      {!setupDone ? (
-        <div className="card ink">
-          <div className="eyebrow" style={{ color: 'rgba(255,255,255,0.6)' }}>One-time setup · 2 minutes</div>
-          <div className="title" style={{ marginTop: 4 }}>Connect your Claude coach</div>
-          <div className="sub" style={{ marginTop: 6 }}>
-            Your coach runs in the Claude app you already have. A Claude Project keeps every coaching conversation together, so it remembers what you’ve discussed.
-          </div>
-          <button className="btn white" style={{ marginTop: 16 }} onClick={() => setSetupOpen(true)}>Set up</button>
-        </div>
-      ) : (
-        <div className="card">
-          <div className="row" style={{ gap: 12 }}>
-            <MessageCircle size={22} />
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 600 }}>How it works</div>
-              <div className="sub" style={{ fontSize: 14 }}>Pick a question → your data is copied → paste it in your Fitness Coach project in Claude → save the answer back here.</div>
+      <div className="card">
+        <div className="row" style={{ gap: 12, alignItems: 'flex-start' }}>
+          <MessageCircle size={22} style={{ flex: 'none', marginTop: 2 }} />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 600 }}>Tap a question → paste in Claude</div>
+            <div className="sub" style={{ fontSize: 14 }}>
+              Your data is copied and Claude opens. Paste and send. Want the answer saved or changes applied? Copy Claude’s reply and come back — Forge picks it up.
             </div>
+            <button className="link-btn" style={{ fontSize: 14, marginTop: 4 }} onClick={() => setSetupOpen(true)}>
+              {hasProject ? 'Coach project linked ✓' : 'Optional: link a Claude Project so it remembers past chats'}
+            </button>
           </div>
         </div>
-      )}
+      </div>
 
       <Section title="Ask your coach">
-        <button className="card" style={{ width: '100%', border: 'none', textAlign: 'left', marginBottom: 12 }} onClick={() => setTopic('custom')}>
+        <button className="card" style={{ width: '100%', border: 'none', textAlign: 'left', marginBottom: 12 }} onClick={() => setPicker('custom')}>
           <div style={{ fontWeight: 600 }}>Ask anything…</div>
           <div className="foot">Your question plus your latest data</div>
         </button>
         <div className="list">
           {TOPICS.map((t) => (
-            <ListRow key={t.id} title={t.title} onClick={() => setTopic(t)} />
+            <ListRow key={t.id} title={t.title} onClick={() => (t.needs ? setPicker(t) : ask(t.question(), t.id))} right={!t.needs ? <ExternalLink size={16} className="chev" /> : undefined} chevron={!!t.needs} />
           ))}
         </div>
       </Section>
@@ -96,143 +89,115 @@ export default function Coach() {
               <ListRow
                 key={n.id}
                 title={n.question}
-                subtitle={`${fmtDate(n.at)} · ${n.reply ? (n.applied?.length ? `${n.applied.length} change${n.applied.length > 1 ? 's' : ''} applied` : 'Answer saved') : 'Waiting for Claude’s answer'}`}
-                right={!n.reply ? <span className="badge">Paste</span> : undefined}
+                subtitle={`${fmtDate(n.at)} · ${n.reply ? (n.applied?.length ? `${n.applied.length} change${n.applied.length > 1 ? 's' : ''} applied` : 'Answer saved') : 'Answer not saved'}`}
+                right={n.id === pendingId && !n.reply ? <span className="badge ink">Paste answer</span> : undefined}
                 onClick={() => setOpenNote(n.id)}
               />
             ))}
           </div>
         ) : (
-          <div className="card"><Empty title="No conversations yet">Ask a question above to start.</Empty></div>
-        )}
-        {setupDone && (
-          <button className="link-btn" style={{ fontSize: 15, margin: '12px 4px' }} onClick={() => setSetupOpen(true)}>Coach setup instructions</button>
+          <div className="card"><Empty title="No conversations yet">Tap a question above to start.</Empty></div>
         )}
       </Section>
 
-      <Sheet open={setupOpen} onClose={() => setSetupOpen(false)} title="Set up your coach">
-        <ol className="stack" style={{ paddingLeft: 20, margin: 0 }}>
-          <li>Tap <b>Copy instructions</b> below.</li>
-          <li>Open the <b>Claude app</b> → <b>Projects</b> → <b>Create project</b>. Name it <b>Fitness Coach</b>.</li>
-          <li>In the project, open <b>Instructions</b> (“Set project instructions”) and paste.</li>
-          <li>Always start coaching chats inside that project.</li>
-        </ol>
-        <div className="stack" style={{ marginTop: 20 }}>
-          <button className="btn" onClick={async () => setCopiedInstr(await copy(PROJECT_INSTRUCTIONS))}>
-            {copiedInstr ? <><Check size={18} /> Copied</> : <><Copy size={18} /> Copy instructions</>}
-          </button>
-          <a className="btn secondary" href={CLAUDE_URL} target="_blank" rel="noreferrer"><ExternalLink size={18} /> Open Claude</a>
-          <button
-            className="btn outline"
-            onClick={() => {
-              localStorage.setItem(SETUP_KEY, '1');
-              setSetupDone(true);
-              setSetupOpen(false);
-            }}
-          >
-            I’ve set it up
-          </button>
-        </div>
-        <details style={{ marginTop: 16 }}>
-          <summary className="foot">Preview instructions</summary>
-          <pre className="foot" style={{ whiteSpace: 'pre-wrap', fontSize: 12 }}>{PROJECT_INSTRUCTIONS}</pre>
-        </details>
-      </Sheet>
+      <SetupSheet open={setupOpen} onClose={() => setSetupOpen(false)} />
 
-      <AskSheet
-        topic={topic}
-        onClose={() => setTopic(null)}
-        trainedExercises={trained}
-        programExercises={program?.days.flatMap((d) => d.exercises.map((e) => e.exerciseId)) ?? []}
-        makePrompt={makePrompt}
-        onAsked={(id) => {
-          setTopic(null);
-          setOpenNote(id);
-        }}
+      <PickerSheet
+        topic={picker}
+        onClose={() => setPicker(null)}
+        exercises={[...new Set([...trained, ...(program?.days.flatMap((d) => d.exercises.map((e) => e.exerciseId)) ?? [])])]}
+        onAsk={ask}
       />
 
-      <NoteSheet note={note} onClose={() => setOpenNote(null)} makePrompt={makePrompt} />
+      <NoteSheet
+        note={note}
+        onClose={() => setOpenNote(null)}
+        onAskAgain={(n) => ask(n.question, n.topic)}
+      />
     </Page>
   );
 }
 
-function AskSheet({
-  topic,
-  onClose,
-  trainedExercises,
-  programExercises,
-  makePrompt,
-  onAsked,
-}: {
-  topic: CoachTopic | 'custom' | null;
-  onClose: () => void;
-  trainedExercises: string[];
-  programExercises: string[];
-  makePrompt: (q: string) => string;
-  onAsked: (noteId: string) => void;
-}) {
-  const [arg, setArg] = useState<string | undefined>();
-  const [custom, setCustom] = useState('');
-  const [edited, setEdited] = useState<string | null>(null);
-  const t = topic === 'custom' ? null : topic;
-  const exOptions = [...new Set([...trainedExercises, ...programExercises])];
-  const base = t ? t.question(t.needs === 'exercise' ? (arg ? getExercise(arg).name.toLowerCase() : undefined) : t.needs === 'muscle' ? (arg ? MUSCLE_LABEL[arg as Muscle].toLowerCase() : undefined) : undefined) : custom;
-  const question = edited ?? base;
+function SetupSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const [copied, setCopied] = useState(false);
+  const [url, setUrl] = useState(getProjectUrl());
+  const valid = !url || /^https:\/\/claude\.ai\//.test(url.trim());
+  return (
+    <Sheet open={open} onClose={onClose} title="Coach project">
+      <p className="sub" style={{ marginTop: 0 }}>
+        Optional. Every question already includes coaching instructions, so any Claude chat works. A Project keeps all your coaching chats together so Claude remembers what you’ve discussed.
+      </p>
+      <ol className="stack" style={{ paddingLeft: 20 }}>
+        <li>In Claude: <b>Projects → Create project</b>, name it <b>Fitness Coach</b>.</li>
+        <li>
+          Tap <b>Copy instructions</b> and paste them into the project’s <b>Instructions</b>.
+          <button className="btn secondary sm" style={{ marginTop: 8 }} onClick={() => { copyNow(PROJECT_INSTRUCTIONS); setCopied(true); }}>
+            {copied ? <><Check size={16} /> Copied</> : <><Copy size={16} /> Copy instructions</>}
+          </button>
+        </li>
+        <li>
+          In the project, tap <b>Share → Copy link</b> (or copy the address in a browser) and paste it here. Forge will open straight into the project.
+          <input className="input" style={{ marginTop: 8 }} value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://claude.ai/project/…" inputMode="url" />
+          {!valid && <div className="foot" style={{ color: 'var(--bad)', marginTop: 4 }}>That doesn’t look like a claude.ai link.</div>}
+        </li>
+      </ol>
+      <button className="btn" style={{ marginTop: 8 }} disabled={!valid} onClick={() => { setProjectUrl(url.trim()); onClose(); }}>Save</button>
+    </Sheet>
+  );
+}
 
+function PickerSheet({ topic, onClose, exercises, onAsk }: { topic: CoachTopic | 'custom' | null; onClose: () => void; exercises: string[]; onAsk: (q: string, topicId: string) => void }) {
+  const [custom, setCustom] = useState('');
+  const t = topic === 'custom' ? null : topic;
   const close = () => {
-    setArg(undefined);
     setCustom('');
-    setEdited(null);
     onClose();
   };
-
-  const ask = async () => {
-    // Copy synchronously within the tap so iOS allows clipboard access.
-    await copy(makePrompt(question));
-    const id = uid();
-    await db.coach.add({ id, at: nowISO(), topic: t?.id ?? 'custom', question });
-    close();
-    onAsked(id);
-  };
-
   return (
     <Sheet open={!!topic} onClose={close} title={t ? t.title : 'Ask anything'}>
       <div className="stack">
         {t?.needs === 'exercise' && (
-          <div>
-            <div className="eyebrow" style={{ margin: '0 4px 8px' }}>Which lift?</div>
+          <>
+            <div className="eyebrow" style={{ margin: '0 4px' }}>Tap a lift to ask</div>
             <div className="chips">
-              {exOptions.map((id) => (
-                <button key={id} className={`chip${arg === id ? ' on' : ''}`} onClick={() => { setArg(id); setEdited(null); }}>{getExercise(id).name}</button>
+              {exercises.map((id) => (
+                <button key={id} className="chip" onClick={() => { onAsk(t.question(getExercise(id).name.toLowerCase()), t.id); close(); }}>{getExercise(id).name}</button>
               ))}
             </div>
-          </div>
+          </>
         )}
         {t?.needs === 'muscle' && (
-          <div>
-            <div className="eyebrow" style={{ margin: '0 4px 8px' }}>Which muscle?</div>
-            <Chips options={Object.keys(MUSCLE_LABEL) as Muscle[]} value={arg ? [arg as Muscle] : []} onChange={(v) => { setArg(v.at(-1)); setEdited(null); }} labels={MUSCLE_LABEL} />
-          </div>
+          <>
+            <div className="eyebrow" style={{ margin: '0 4px' }}>Tap a muscle to ask</div>
+            <Chips
+              options={Object.keys(MUSCLE_LABEL) as Muscle[]}
+              value={[]}
+              onChange={(v) => { const m = v.at(-1)!; onAsk(t.question(MUSCLE_LABEL[m].toLowerCase()), t.id); close(); }}
+              labels={MUSCLE_LABEL}
+            />
+          </>
         )}
-        <label className="field">
-          <span>Your question</span>
-          <textarea className="input" value={question} onChange={(e) => (t ? setEdited(e.target.value) : setCustom(e.target.value))} placeholder="e.g. Should I add a 5th training day?" />
-        </label>
-        <p className="foot">Your profile, program, recent workouts, body-weight trend and recent coaching are copied along with the question. Nothing is sent anywhere until you paste it into Claude.</p>
-        <button className="btn" disabled={!question.trim() || (t?.needs !== undefined && !arg)} onClick={ask}>
-          <Copy size={18} /> Copy my data & question
-        </button>
+        {!t && (
+          <>
+            <textarea className="input" autoFocus value={custom} onChange={(e) => setCustom(e.target.value)} placeholder="e.g. Should I add a 5th training day?" />
+            <button className="btn" disabled={!custom.trim()} onClick={() => { onAsk(custom.trim(), 'custom'); close(); }}>
+              <ExternalLink size={18} /> Ask Claude
+            </button>
+          </>
+        )}
+        <p className="foot">Your profile, program, recent workouts and body-weight trend are copied with the question. Nothing leaves your phone until you paste it into Claude.</p>
       </div>
     </Sheet>
   );
 }
 
-function NoteSheet({ note, onClose, makePrompt }: { note?: CoachNote; onClose: () => void; makePrompt: (q: string) => string }) {
+function NoteSheet({ note, onClose, onAskAgain }: { note?: CoachNote; onClose: () => void; onAskAgain: (n: CoachNote) => void }) {
   const program = useActiveProgram();
   const profile = useProfile();
   const [draft, setDraft] = useState('');
+  const [manual, setManual] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
   const [selected, setSelected] = useState<Record<number, boolean>>({});
-  const [copied, setCopied] = useState(false);
   const [applied, setApplied] = useState<string | null>(null);
 
   const resolved: ResolvedChange[] = useMemo(() => {
@@ -243,8 +208,9 @@ function NoteSheet({ note, onClose, makePrompt }: { note?: CoachNote; onClose: (
 
   const close = () => {
     setDraft('');
+    setManual(false);
+    setMsg(null);
     setSelected({});
-    setCopied(false);
     setApplied(null);
     onClose();
   };
@@ -252,8 +218,21 @@ function NoteSheet({ note, onClose, makePrompt }: { note?: CoachNote; onClose: (
 
   const doneIdx = new Set(note.appliedIdx ?? []);
   const saveReply = async (text: string) => {
+    if (!text.trim()) return setMsg('Nothing to save — the clipboard is empty.');
+    if (looksLikeOurPrompt(text)) return setMsg('Your clipboard still has your data, not Claude’s answer. In Claude, tap Copy under the reply, then come back and tap Paste again.');
     await db.coach.update(note.id, { reply: text.trim(), repliedAt: nowISO() });
+    if (getPending() === note.id) clearPending();
     setDraft('');
+    setMsg(null);
+  };
+
+  const pasteFromClipboard = async () => {
+    try {
+      await saveReply(await navigator.clipboard.readText());
+    } catch {
+      setManual(true);
+      setMsg('Couldn’t read the clipboard — long-press the box below and choose Paste.');
+    }
   };
 
   const apply = async () => {
@@ -271,7 +250,6 @@ function NoteSheet({ note, onClose, makePrompt }: { note?: CoachNote; onClose: (
 
   const display = note.reply?.replace(/```forge-changes[\s\S]*?```/g, '').trim();
 
-
   return (
     <Sheet open onClose={close} title={fmtDate(note.at, { month: 'short', day: 'numeric' })}>
       <div className="stack">
@@ -282,32 +260,22 @@ function NoteSheet({ note, onClose, makePrompt }: { note?: CoachNote; onClose: (
 
         {!note.reply ? (
           <>
-            <ol className="sub" style={{ paddingLeft: 20, margin: 0, color: 'var(--ink)' }}>
-              <li>Your data and question are copied. Tap <b>Open Claude</b>, go to your <b>Fitness Coach</b> project, start a chat and paste.</li>
-              <li>When Claude answers, copy the whole reply and paste it below.</li>
-            </ol>
+            <button className="btn" style={{ height: 60, fontSize: 18 }} onClick={pasteFromClipboard}>
+              <ClipboardPaste size={20} /> Paste Claude’s answer
+            </button>
+            <p className="foot" style={{ margin: '0 4px' }}>In Claude, tap <b>Copy</b> under the reply first. Only needed if you want it saved here or want to apply program changes.</p>
+            {msg && <p className="sub" style={{ margin: '0 4px', color: 'var(--ink)' }}>{msg}</p>}
+            {manual && (
+              <>
+                <textarea className="input" style={{ minHeight: 140 }} value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Paste Claude’s answer here" />
+                <button className="btn secondary" disabled={!draft.trim()} onClick={() => saveReply(draft)}>Save answer</button>
+              </>
+            )}
             <div className="btn-row">
-              <a className="btn sm" style={{ height: 44 }} href={CLAUDE_URL} target="_blank" rel="noreferrer"><ExternalLink size={16} /> Open Claude</a>
-              <button className="btn secondary sm" style={{ height: 44 }} onClick={async () => setCopied(await copy(makePrompt(note.question)))}>
-                {copied ? <><Check size={16} /> Copied</> : <><Copy size={16} /> Copy again</>}
-              </button>
+              <button className="btn secondary" onClick={() => onAskAgain(note)}><ExternalLink size={16} /> Ask again</button>
+              <button className="btn secondary" onClick={() => { if (getPending() === note.id) clearPending(); close(); }}>Done</button>
             </div>
-            <textarea className="input" style={{ minHeight: 160 }} value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Paste Claude’s answer here" />
-            <div className="btn-row">
-              <button
-                className="btn secondary"
-                onClick={async () => {
-                  try {
-                    setDraft(await navigator.clipboard.readText());
-                  } catch {
-                    /* user can paste manually */
-                  }
-                }}
-              >
-                <ClipboardPaste size={18} /> Paste
-              </button>
-              <button className="btn" disabled={!draft.trim()} onClick={() => saveReply(draft)}>Save answer</button>
-            </div>
+            {!manual && <button className="link-btn" style={{ fontSize: 14, color: 'var(--ink-2)' }} onClick={() => setManual(true)}>Paste manually instead</button>}
           </>
         ) : (
           <>
@@ -341,10 +309,13 @@ function NoteSheet({ note, onClose, makePrompt }: { note?: CoachNote; onClose: (
                 {applied && <p className="sub" style={{ margin: '8px 4px' }}>{applied} Every change is in your program’s change history.</p>}
               </div>
             )}
-            <button className="btn secondary" onClick={() => db.coach.update(note.id, { reply: undefined, appliedIdx: [] })}>Replace answer</button>
+            <div className="btn-row">
+              <button className="btn secondary" onClick={() => onAskAgain(note)}><ExternalLink size={16} /> Ask again</button>
+              <button className="btn secondary" onClick={() => db.coach.update(note.id, { reply: undefined, appliedIdx: [] })}>Replace answer</button>
+            </div>
           </>
         )}
-        <button className="btn danger" onClick={async () => { if (confirm('Delete this conversation from the app?')) { await db.coach.delete(note.id); close(); } }}>Delete</button>
+        <button className="btn danger" onClick={async () => { if (confirm('Delete this conversation from the app?')) { if (getPending() === note.id) clearPending(); await db.coach.delete(note.id); close(); } }}>Delete</button>
       </div>
     </Sheet>
   );
