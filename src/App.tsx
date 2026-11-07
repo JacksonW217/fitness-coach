@@ -1,4 +1,4 @@
-import { BarChart3, CalendarDays, CircleUserRound, Sun } from 'lucide-react';
+import { BarChart3, CalendarDays, CircleUserRound, MessageCircle, Sun } from 'lucide-react';
 import { useEffect } from 'react';
 import { Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom';
 import { useActiveProgram, useProfile } from './lib/data';
@@ -13,10 +13,12 @@ import Progress from './screens/Progress';
 import ExerciseDetail from './screens/ExerciseDetail';
 import ProfileScreen from './screens/Profile';
 import ProgramReview from './screens/ProgramReview';
+import Coach from './screens/Coach';
 
 const TABS = [
   { to: '/', label: 'Today', icon: Sun },
   { to: '/program', label: 'Program', icon: CalendarDays },
+  { to: '/coach', label: 'Coach', icon: MessageCircle },
   { to: '/progress', label: 'Progress', icon: BarChart3 },
   { to: '/profile', label: 'Profile', icon: CircleUserRound },
 ];
@@ -47,7 +49,7 @@ export default function App() {
 
   if (profile === null || program === null) return <div className="app" />; // loading
   const onboarded = !!profile && !!program;
-  const showTabs = onboarded && ['/', '/program', '/progress', '/profile'].includes(loc.pathname);
+  const showTabs = onboarded && ['/', '/program', '/coach', '/progress', '/profile'].includes(loc.pathname);
 
   return (
     <div className="app">
@@ -67,6 +69,7 @@ export default function App() {
             <Route path="/progress" element={<Progress />} />
             <Route path="/progress/exercise/:id" element={<ExerciseDetail />} />
             <Route path="/profile" element={<ProfileScreen />} />
+            <Route path="/coach" element={<Coach />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </>
         )}

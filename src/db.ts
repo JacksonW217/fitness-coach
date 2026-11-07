@@ -1,5 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie';
-import type { BodyWeight, Measurement, Profile, Program, ProgramChange, Session } from './types';
+import type { BodyWeight, CoachNote, Measurement, Profile, Program, ProgramChange, Session } from './types';
 
 export const db = new Dexie('forge') as Dexie & {
   profile: EntityTable<Profile, 'id'>;
@@ -8,6 +8,7 @@ export const db = new Dexie('forge') as Dexie & {
   sessions: EntityTable<Session, 'id'>;
   bodyweights: EntityTable<BodyWeight, 'id'>;
   measurements: EntityTable<Measurement, 'id'>;
+  coach: EntityTable<CoachNote, 'id'>;
 };
 
 db.version(1).stores({
@@ -18,6 +19,7 @@ db.version(1).stores({
   bodyweights: 'id, &date',
   measurements: 'id, date',
 });
+db.version(2).stores({ coach: 'id, at' });
 
 /** Ask Safari not to evict our storage. Best-effort. */
 export async function requestPersistence() {
@@ -28,7 +30,7 @@ export async function requestPersistence() {
   }
 }
 
-const TABLES = ['profile', 'programs', 'changes', 'sessions', 'bodyweights', 'measurements'] as const;
+const TABLES = ['profile', 'programs', 'changes', 'sessions', 'bodyweights', 'measurements', 'coach'] as const;
 
 export async function exportAll() {
   const data: Record<string, unknown[]> = {};
@@ -42,7 +44,7 @@ export async function importAll(json: unknown) {
   await db.transaction('rw', TABLES.map((t) => db.table(t)), async () => {
     for (const t of TABLES) {
       await db.table(t).clear();
-      if (Array.isArray(j.data![t])) await db.table(t).bulkAdd(j.data![t]);
+      if (Array.isArray(j.data![t])) await db.table(t).bulkAdd(j.data![t]); // older backups may lack newer tables
     }
   });
 }

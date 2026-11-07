@@ -89,6 +89,11 @@ export default function WorkoutSummary() {
           <div className="card sub" style={{ color: 'var(--ink)' }}>{session.notes}</div>
         </Section>
       )}
+      {session.optimized && (
+        <Section title="Optimized session">
+          <div className="card sub" style={{ fontSize: 14 }}>{session.optimized.stimulusNote}</div>
+        </Section>
+      )}
       {session.feeling && <p className="foot" style={{ margin: '16px 4px' }}>Started feeling: {session.feeling}</p>}
     </Page>
   );

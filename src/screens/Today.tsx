@@ -1,4 +1,4 @@
-import { Activity, AlertTriangle, BarChart3, CalendarDays, Dumbbell, Info, Play, Scale, TrendingUp, Trophy } from 'lucide-react';
+import { Activity, AlertTriangle, BarChart3, CalendarDays, Dumbbell, Info, MessageCircle, Play, Scale, Sparkles, TrendingUp, Trophy } from 'lucide-react';
 import { useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { dayMeta } from '../components/DayList';
@@ -24,6 +24,7 @@ export default function Today() {
   const active = useActiveSession();
   const [weightOpen, setWeightOpen] = useState(false);
   const [startOpen, setStartOpen] = useState(false);
+  const [optimizeMode, setOptimizeMode] = useState(false);
 
   const done = useMemo(() => sessions.filter((s) => s.status === 'done'), [sessions]);
   const insights = useMemo(() => (profile ? buildInsights({ profile, program: program ?? undefined, sessions, weights }) : []), [profile, program, sessions, weights]);
@@ -72,7 +73,7 @@ export default function Today() {
               </div>
               <div className="title" style={{ fontSize: 28, marginTop: 4 }}>{today.name}</div>
               <div className="sub" style={{ marginTop: 2 }}>{today.focus}</div>
-              <div className="sub" style={{ marginTop: 2 }}>{dayMeta(today)}</div>
+              <button className="sub" style={{ marginTop: 2, background: 'none', border: 'none', padding: 0, color: 'inherit', textDecoration: 'underline', textUnderlineOffset: 3 }} onClick={() => nav(`/program/day/${today.id}`)}>{dayMeta(today)}</button>
               {doneToday ? (
                 <div className="row" style={{ marginTop: 16, gap: 10 }}>
                   <span className="badge" style={{ background: 'rgba(255,255,255,0.16)', color: '#fff' }}>✓ Completed</span>
@@ -80,11 +81,11 @@ export default function Today() {
                 </div>
               ) : (
                 <div className="btn-row" style={{ marginTop: 16 }}>
-                  <button className="btn white" onClick={() => setStartOpen(true)}>
-                    <Play size={18} fill="#000" /> Start workout
+                  <button className="btn white" onClick={() => { setOptimizeMode(false); setStartOpen(true); }}>
+                    <Play size={18} fill="#000" /> Start
                   </button>
-                  <button className="btn sm" style={{ height: 50, background: 'rgba(255,255,255,0.14)', flex: 'none', width: 'auto' }} onClick={() => nav(`/program/day/${today.id}`)}>
-                    Preview
+                  <button className="btn" style={{ background: 'rgba(255,255,255,0.14)' }} onClick={() => { setOptimizeMode(true); setStartOpen(true); }}>
+                    <Sparkles size={18} /> Optimize
                   </button>
                 </div>
               )}
@@ -96,7 +97,7 @@ export default function Today() {
               <div className="sub" style={{ marginTop: 4 }}>
                 {next ? `Next: ${next.day.name} on ${WEEKDAYS_LONG[next.date.getDay()]}.` : ''} Light walking or mobility is a good idea on rest days.
               </div>
-              <button className="btn white sm" style={{ marginTop: 16 }} onClick={() => setStartOpen(true)}>
+              <button className="btn white sm" style={{ marginTop: 16 }} onClick={() => { setOptimizeMode(false); setStartOpen(true); }}>
                 Train anyway
               </button>
             </>
@@ -134,7 +135,9 @@ export default function Today() {
 
       <Section title="Quick actions">
         <div className="grid-2">
-          <QuickAction icon={<Dumbbell size={20} />} label="Start workout" onClick={() => (active ? nav('/workout') : setStartOpen(true))} />
+          <QuickAction icon={<Dumbbell size={20} />} label="Start workout" onClick={() => (active ? nav('/workout') : (setOptimizeMode(false), setStartOpen(true)))} />
+          <QuickAction icon={<Sparkles size={20} />} label="Optimize today’s workout" onClick={() => (active ? nav('/workout') : (setOptimizeMode(true), setStartOpen(true)))} />
+          <QuickAction icon={<MessageCircle size={20} />} label="Talk to coach" onClick={() => nav('/coach')} />
           <QuickAction icon={<Scale size={20} />} label="Log weight" onClick={() => setWeightOpen(true)} />
           <QuickAction icon={<BarChart3 size={20} />} label="View progress" onClick={() => nav('/progress')} />
           <QuickAction icon={<CalendarDays size={20} />} label="Edit program" onClick={() => nav('/program')} />
@@ -142,7 +145,7 @@ export default function Today() {
       </Section>
 
       <LogWeightSheet open={weightOpen} onClose={() => setWeightOpen(false)} last={weights.at(-1)?.lbs ?? profile.weightLbs} />
-      <StartWorkoutSheet open={startOpen} onClose={() => setStartOpen(false)} days={program.days} programId={program.id} defaultDayId={today?.id ?? next?.day.id} />
+      <StartWorkoutSheet open={startOpen} optimizeFirst={optimizeMode} onClose={() => setStartOpen(false)} days={program.days} programId={program.id} defaultDayId={today?.id ?? next?.day.id} />
     </Page>
   );
 }

@@ -12,6 +12,7 @@ export const useSessions = () => useLiveQuery(() => db.sessions.orderBy('started
 export const useActiveSession = () => useLiveQuery(() => db.sessions.where('status').equals('active').first(), [], null);
 export const useWeights = () => useLiveQuery(() => db.bodyweights.orderBy('date').toArray(), [], null);
 export const useMeasurements = () => useLiveQuery(() => db.measurements.orderBy('date').toArray(), [], null);
+export const useCoachNotes = () => useLiveQuery(() => db.coach.orderBy('at').reverse().toArray(), [], null);
 export const useChanges = (programId?: string) =>
   useLiveQuery(() => (programId ? db.changes.where('programId').equals(programId).reverse().sortBy('at') : db.changes.orderBy('at').reverse().toArray()), [programId], null);
 
@@ -81,11 +82,12 @@ export function buildSession(day: ProgramDay, programId: string | undefined, his
   };
 }
 
-export async function startSession(day: ProgramDay, programId: string | undefined, readiness: Readiness = 'normal', feeling?: string) {
+export async function startSession(day: ProgramDay, programId: string | undefined, readiness: Readiness = 'normal', feeling?: string, optimized?: Session['optimized']) {
   const existing = await db.sessions.where('status').equals('active').first();
   if (existing) return existing.id;
   const s = buildSession(day, programId, await finishedSessions(), readiness);
   s.feeling = feeling;
+  if (optimized) s.optimized = optimized;
   await db.sessions.add(s);
   return s.id;
 }

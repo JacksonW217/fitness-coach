@@ -230,6 +230,14 @@ export default function Workout() {
         </div>
       </div>
 
+      {session.optimized && (
+        <details className="card" style={{ marginTop: 12 }}>
+          <summary style={{ fontWeight: 600, cursor: 'pointer' }}>Optimized{session.optimized.minutes ? ` for ${session.optimized.minutes} min` : ''} · {session.optimized.feeling}</summary>
+          <ul className="sub" style={{ fontSize: 14, margin: '8px 0 0', paddingLeft: 18 }}>{session.optimized.changes.map((c) => <li key={c}>{c}</li>)}</ul>
+          <div className="foot" style={{ marginTop: 8 }}>{session.optimized.stimulusNote}</div>
+        </details>
+      )}
+
       {paused && (
         <div className="card ink" style={{ marginTop: 12 }}>
           <div className="row between">

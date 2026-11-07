@@ -202,7 +202,9 @@ export function consistency(program: Program | undefined, sessions: Session[]) {
   since.setDate(since.getDate() - 28);
   const firstDone = sessions.filter((s) => s.status === 'done').map((s) => s.startedAt).sort()[0];
   if (!firstDone) return undefined;
-  const effectiveSince = new Date(Math.max(since.getTime(), new Date(program.createdAt).getTime()));
+  // Count from when you started training with the app (or 4 weeks ago, whichever is later).
+  const start = Math.min(new Date(program.createdAt).getTime(), new Date(firstDone).getTime());
+  const effectiveSince = new Date(Math.max(since.getTime(), start));
   const weeks = Math.max(1, Math.ceil(daysBetween(effectiveSince, new Date()) / 7));
   const p = Math.min(planned, Object.values(program.schedule).filter(Boolean).length * weeks);
   const n = sessions.filter((s) => s.status === 'done' && new Date(s.startedAt) >= effectiveSince).length;

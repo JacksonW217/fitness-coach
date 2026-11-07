@@ -180,7 +180,7 @@ export interface ProgramChange {
   id: string;
   programId: string;
   at: string;
-  kind: 'created' | 'activated' | 'edit' | 'swap' | 'add' | 'remove' | 'reorder' | 'sets' | 'schedule';
+  kind: 'created' | 'activated' | 'edit' | 'swap' | 'add' | 'remove' | 'reorder' | 'sets' | 'schedule' | 'coach' | 'optimize';
   summary: string;
   reason?: string;
 }
@@ -226,6 +226,8 @@ export interface Session {
   notes?: string;
   feeling?: string;
   restEndsAt?: string; // running rest timer, survives reloads
+  /** Set when the session was built by Optimize My Workout. */
+  optimized?: { minutes?: number; feeling: string; changes: string[]; stimulusNote: string };
 }
 
 export interface BodyWeight {
@@ -239,4 +241,15 @@ export interface Measurement {
   date: string;
   values: Partial<Record<MeasurementKey, number>>;
   bodyFatPct?: number;
+}
+
+export interface CoachNote {
+  id: string;
+  at: string;
+  topic: string;
+  question: string;
+  reply?: string;
+  repliedAt?: string;
+  applied?: string[]; // summaries of program changes applied from this reply
+  appliedIdx?: number[]; // which proposed changes (by position) were applied
 }
