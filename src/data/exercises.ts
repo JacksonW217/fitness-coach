@@ -1,0 +1,179 @@
+import type { Equipment, ExerciseDef, Limitation, Muscle, Pattern } from '../types';
+
+type Def = [
+  id: string,
+  name: string,
+  muscle: Muscle,
+  secondary: Muscle[],
+  pattern: Pattern,
+  equipment: Equipment[],
+  compound: boolean,
+  increment: number,
+  stresses: Limitation[],
+  cues: string[],
+  perHand?: boolean,
+];
+
+const RAW: Def[] = [
+  // ── Chest
+  ['bench-press', 'Barbell Bench Press', 'chest', ['triceps', 'shoulders'], 'hPush', ['barbell', 'bench'], true, 5, ['shoulder', 'wrist'], ['Shoulder blades pinched and down', 'Bar to lower chest, elbows ~45°', 'Feet planted, drive through the floor']],
+  ['db-bench', 'Dumbbell Bench Press', 'chest', ['triceps', 'shoulders'], 'hPush', ['dumbbell', 'bench'], true, 5, ['shoulder'], ['Lower until a deep chest stretch', 'Press up and slightly in', 'Keep wrists stacked over elbows'], true],
+  ['machine-chest-press', 'Machine Chest Press', 'chest', ['triceps', 'shoulders'], 'hPush', ['machine'], true, 5, [], ['Set handles at mid-chest', 'Control the negative', 'Don’t let shoulders roll forward']],
+  ['smith-bench', 'Smith Machine Bench Press', 'chest', ['triceps', 'shoulders'], 'hPush', ['smith', 'bench'], true, 5, ['shoulder'], ['Bar path to lower chest', 'Retract shoulder blades', 'Pause lightly on the chest']],
+  ['push-up', 'Push-Up', 'chest', ['triceps', 'shoulders'], 'hPush', ['bodyweight'], true, 0, ['wrist'], ['Body in one straight line', 'Chest to an inch off the floor', 'Elbows ~45° from torso']],
+  ['incline-bench', 'Incline Barbell Bench Press', 'chest', ['shoulders', 'triceps'], 'inclinePush', ['barbell', 'bench'], true, 5, ['shoulder'], ['Bench at 30°', 'Bar to upper chest', 'Keep upper back tight']],
+  ['incline-db-press', 'Incline Dumbbell Press', 'chest', ['shoulders', 'triceps'], 'inclinePush', ['dumbbell', 'bench'], true, 5, ['shoulder'], ['Bench at 30°', 'Deep stretch at the bottom', 'Don’t clank the bells at the top'], true],
+  ['incline-machine-press', 'Incline Machine Press', 'chest', ['shoulders', 'triceps'], 'inclinePush', ['machine'], true, 5, [], ['Seat so handles align with upper chest', 'Smooth tempo', 'Full range']],
+  ['cable-fly', 'Cable Fly', 'chest', [], 'fly', ['cable'], false, 5, ['shoulder'], ['Soft bend in elbows', 'Hug a barrel', 'Squeeze for a beat at the middle']],
+  ['pec-deck', 'Pec Deck', 'chest', [], 'fly', ['machine'], false, 5, [], ['Elbows slightly below shoulders', 'Control the stretch', 'Squeeze hands together']],
+  ['db-fly', 'Dumbbell Fly', 'chest', [], 'fly', ['dumbbell', 'bench'], false, 5, ['shoulder'], ['Slight elbow bend, fixed', 'Lower to a comfortable stretch', 'Lead with the elbows'], true],
+  ['dip', 'Dip', 'chest', ['triceps', 'shoulders'], 'hPush', ['dipStation'], true, 0, ['shoulder', 'elbow'], ['Lean slightly forward for chest', 'Lower until upper arm is parallel', 'Don’t shrug up']],
+  // ── Back
+  ['pull-up', 'Pull-Up', 'back', ['biceps'], 'vPull', ['pullupBar'], true, 0, ['shoulder', 'elbow'], ['Start from a dead hang', 'Drive elbows to your ribs', 'Chin over the bar']],
+  ['chin-up', 'Chin-Up', 'back', ['biceps'], 'vPull', ['pullupBar'], true, 0, ['elbow'], ['Palms facing you', 'Full hang to chin over bar', 'Avoid kipping']],
+  ['lat-pulldown', 'Lat Pulldown', 'back', ['biceps'], 'vPull', ['cable'], true, 5, [], ['Slight lean back', 'Pull bar to upper chest', 'Control the bar up to a full stretch']],
+  ['close-grip-pulldown', 'Close-Grip Pulldown', 'back', ['biceps'], 'vPull', ['cable'], true, 5, [], ['Neutral grip handle', 'Elbows down and back', 'Full stretch at the top']],
+  ['band-pulldown', 'Band Lat Pulldown', 'back', ['biceps'], 'vPull', ['band'], false, 0, [], ['Anchor band high', 'Pull elbows to ribs', 'Slow return']],
+  ['barbell-row', 'Barbell Row', 'back', ['biceps', 'hamstrings'], 'hPull', ['barbell'], true, 5, ['lowBack'], ['Hinge to ~45°, flat back', 'Row to lower ribs', 'No jerking the torso']],
+  ['db-row', 'One-Arm Dumbbell Row', 'back', ['biceps'], 'hPull', ['dumbbell', 'bench'], true, 5, [], ['Hand and knee on bench', 'Pull elbow toward hip', 'Let the shoulder blade stretch forward'], true],
+  ['cable-row', 'Seated Cable Row', 'back', ['biceps'], 'hPull', ['cable'], true, 5, [], ['Tall chest', 'Pull to belly button', 'Reach forward for the stretch without rounding']],
+  ['chest-supported-row', 'Chest-Supported Row', 'back', ['biceps'], 'hPull', ['dumbbell', 'bench'], true, 5, [], ['Chest on incline bench', 'Pull elbows back', 'Pause at the top'], true],
+  ['machine-row', 'Machine Row', 'back', ['biceps'], 'hPull', ['machine'], true, 5, [], ['Chest against pad', 'Drive elbows back', 'Full stretch forward']],
+  ['inverted-row', 'Inverted Row', 'back', ['biceps'], 'hPull', ['rack'], true, 0, [], ['Body in a straight line', 'Pull chest to bar', 'Squeeze shoulder blades']],
+  // ── Shoulders
+  ['ohp', 'Overhead Press', 'shoulders', ['triceps'], 'vPush', ['barbell', 'rack'], true, 5, ['shoulder', 'lowBack'], ['Squeeze glutes, ribs down', 'Press bar in a straight line', 'Head through at the top']],
+  ['db-shoulder-press', 'Seated Dumbbell Shoulder Press', 'shoulders', ['triceps'], 'vPush', ['dumbbell', 'bench'], true, 5, ['shoulder'], ['Back against the pad', 'Lower to ear level', 'Press without flaring ribs'], true],
+  ['machine-shoulder-press', 'Machine Shoulder Press', 'shoulders', ['triceps'], 'vPush', ['machine'], true, 5, [], ['Handles at shoulder height', 'Smooth press', 'Don’t lock out hard']],
+  ['pike-push-up', 'Pike Push-Up', 'shoulders', ['triceps'], 'vPush', ['bodyweight'], true, 0, ['shoulder', 'wrist'], ['Hips high', 'Head toward floor between hands', 'Press back up']],
+  ['lateral-raise', 'Dumbbell Lateral Raise', 'shoulders', [], 'lateral', ['dumbbell'], false, 5, [], ['Slight forward lean', 'Lead with elbows', 'Stop at shoulder height'], true],
+  ['cable-lateral-raise', 'Cable Lateral Raise', 'shoulders', [], 'lateral', ['cable'], false, 5, [], ['Cable behind the body', 'Raise out to the side', 'Slow lowering']],
+  ['band-lateral-raise', 'Band Lateral Raise', 'shoulders', [], 'lateral', ['band'], false, 0, [], ['Stand on band', 'Raise to shoulder height', 'Control down']],
+  ['rear-delt-fly', 'Rear Delt Dumbbell Fly', 'shoulders', ['back'], 'rearDelt', ['dumbbell'], false, 5, [], ['Hinge forward, flat back', 'Raise out wide', 'Pinky slightly up'], true],
+  ['face-pull', 'Cable Face Pull', 'shoulders', ['back'], 'rearDelt', ['cable'], false, 5, [], ['Rope at face height', 'Pull to the eyes, elbows high', 'Rotate hands back at the end']],
+  ['reverse-pec-deck', 'Reverse Pec Deck', 'shoulders', ['back'], 'rearDelt', ['machine'], false, 5, [], ['Arms parallel to floor', 'Sweep back wide', 'Don’t shrug']],
+  ['band-pull-apart', 'Band Pull-Apart', 'shoulders', ['back'], 'rearDelt', ['band'], false, 0, [], ['Arms straight', 'Pull band to chest', 'Squeeze shoulder blades']],
+  // ── Arms
+  ['barbell-curl', 'Barbell Curl', 'biceps', [], 'biceps', ['barbell'], false, 5, ['wrist', 'elbow'], ['Elbows pinned at sides', 'No swinging', 'Lower under control']],
+  ['db-curl', 'Dumbbell Curl', 'biceps', [], 'biceps', ['dumbbell'], false, 5, [], ['Supinate as you curl', 'Full extension at the bottom', 'Elbows still'], true],
+  ['incline-db-curl', 'Incline Dumbbell Curl', 'biceps', [], 'biceps', ['dumbbell', 'bench'], false, 5, ['shoulder'], ['Bench at 45–60°', 'Arms hang behind body', 'Slow eccentric'], true],
+  ['hammer-curl', 'Hammer Curl', 'biceps', [], 'biceps', ['dumbbell'], false, 5, [], ['Neutral grip', 'Curl across or straight up', 'No body english'], true],
+  ['cable-curl', 'Cable Curl', 'biceps', [], 'biceps', ['cable'], false, 5, [], ['Constant tension', 'Elbows at sides', 'Squeeze at top']],
+  ['band-curl', 'Band Curl', 'biceps', [], 'biceps', ['band'], false, 0, [], ['Stand on band', 'Curl to shoulders', 'Slow down']],
+  ['triceps-pushdown', 'Cable Triceps Pushdown', 'triceps', [], 'triceps', ['cable'], false, 5, [], ['Elbows tucked', 'Full lockout', 'Control the return']],
+  ['overhead-triceps-ext', 'Overhead Cable Triceps Extension', 'triceps', [], 'triceps', ['cable'], false, 5, ['elbow', 'shoulder'], ['Face away from the stack', 'Deep stretch behind the head', 'Extend fully']],
+  ['db-overhead-ext', 'Dumbbell Overhead Triceps Extension', 'triceps', [], 'triceps', ['dumbbell'], false, 5, ['elbow', 'shoulder'], ['Both hands on one dumbbell', 'Elbows point up', 'Lower behind head']],
+  ['skull-crusher', 'EZ-Bar Skull Crusher', 'triceps', [], 'triceps', ['barbell', 'bench'], false, 5, ['elbow'], ['Lower to forehead or just behind', 'Upper arms still', 'Smooth lockout']],
+  ['close-grip-bench', 'Close-Grip Bench Press', 'triceps', ['chest'], 'hPush', ['barbell', 'bench'], true, 5, ['wrist', 'elbow'], ['Hands shoulder-width', 'Elbows tucked', 'Touch lower chest']],
+  ['diamond-push-up', 'Diamond Push-Up', 'triceps', ['chest'], 'triceps', ['bodyweight'], false, 0, ['wrist', 'elbow'], ['Hands together under chest', 'Elbows back', 'Full range']],
+  ['band-pushdown', 'Band Triceps Pushdown', 'triceps', [], 'triceps', ['band'], false, 0, [], ['Anchor band high', 'Elbows pinned', 'Lock out']],
+  // ── Legs
+  ['back-squat', 'Barbell Back Squat', 'quads', ['glutes', 'hamstrings'], 'squat', ['barbell', 'rack'], true, 10, ['knee', 'lowBack', 'hip'], ['Brace before every rep', 'Knees track over toes', 'Hit depth with a neutral spine'],],
+  ['front-squat', 'Front Squat', 'quads', ['glutes'], 'squat', ['barbell', 'rack'], true, 5, ['knee', 'wrist'], ['Elbows high', 'Upright torso', 'Sit straight down']],
+  ['hack-squat', 'Hack Squat', 'quads', ['glutes'], 'squat', ['machine'], true, 10, ['knee'], ['Feet mid-platform', 'Deep, controlled descent', 'Don’t lock knees hard']],
+  ['leg-press', 'Leg Press', 'quads', ['glutes'], 'squat', ['machine'], true, 10, ['knee'], ['Lower back stays on the pad', 'Go as deep as you can without rounding', 'Push through the whole foot']],
+  ['smith-squat', 'Smith Machine Squat', 'quads', ['glutes'], 'squat', ['smith'], true, 10, ['knee'], ['Feet slightly forward', 'Controlled depth', 'Brace hard']],
+  ['goblet-squat', 'Goblet Squat', 'quads', ['glutes'], 'squat', ['dumbbell'], true, 5, ['knee'], ['Hold bell at chest', 'Elbows inside knees', 'Sit down between your heels']],
+  ['bw-squat', 'Bodyweight Squat', 'quads', ['glutes'], 'squat', ['bodyweight'], true, 0, ['knee'], ['Full depth', 'Heels down', 'Controlled tempo']],
+  ['bulgarian-split-squat', 'Bulgarian Split Squat', 'quads', ['glutes'], 'lunge', ['dumbbell', 'bench'], true, 5, ['knee', 'hip'], ['Rear foot on bench', 'Front knee forward over toes', 'Drop straight down'], true],
+  ['walking-lunge', 'Walking Lunge', 'quads', ['glutes'], 'lunge', ['dumbbell'], true, 5, ['knee'], ['Long stride', 'Back knee to just above floor', 'Stay tall'], true],
+  ['reverse-lunge', 'Reverse Lunge', 'quads', ['glutes'], 'lunge', ['bodyweight'], true, 0, ['knee'], ['Step back', 'Front shin vertical-ish', 'Drive through the front heel']],
+  ['leg-extension', 'Leg Extension', 'quads', [], 'kneeExt', ['machine'], false, 5, ['knee'], ['Pad above ankles', 'Pause at the top', 'Slow lowering']],
+  ['romanian-deadlift', 'Romanian Deadlift', 'hamstrings', ['glutes', 'back'], 'hinge', ['barbell'], true, 10, ['lowBack'], ['Push hips back, soft knees', 'Bar slides down the thighs', 'Stop when hamstrings are stretched, back flat']],
+  ['db-rdl', 'Dumbbell Romanian Deadlift', 'hamstrings', ['glutes'], 'hinge', ['dumbbell'], true, 5, ['lowBack'], ['Hips back', 'Dumbbells close to legs', 'Flat back throughout'], true],
+  ['deadlift', 'Deadlift', 'hamstrings', ['glutes', 'back', 'quads'], 'hinge', ['barbell'], true, 10, ['lowBack', 'hip'], ['Bar over mid-foot', 'Brace, pull the slack out', 'Push the floor away, lock out with glutes']],
+  ['kb-swing', 'Kettlebell Swing', 'glutes', ['hamstrings'], 'hinge', ['kettlebell'], true, 5, ['lowBack'], ['Hike the bell back', 'Snap hips forward', 'Arms are just ropes']],
+  ['lying-leg-curl', 'Lying Leg Curl', 'hamstrings', [], 'kneeFlex', ['machine'], false, 5, [], ['Hips pressed into pad', 'Curl fully', 'Slow eccentric']],
+  ['seated-leg-curl', 'Seated Leg Curl', 'hamstrings', [], 'kneeFlex', ['machine'], false, 5, [], ['Thigh pad snug', 'Lean slightly forward', 'Full range']],
+  ['nordic-curl', 'Nordic Ham Curl (assisted)', 'hamstrings', [], 'kneeFlex', ['bodyweight'], false, 0, ['knee'], ['Anchor heels', 'Lower as slowly as possible', 'Push off the floor to return']],
+  ['hip-thrust', 'Barbell Hip Thrust', 'glutes', ['hamstrings'], 'glute', ['barbell', 'bench'], true, 10, [], ['Upper back on bench', 'Chin tucked, ribs down', 'Full lockout with glutes']],
+  ['glute-bridge', 'Glute Bridge', 'glutes', ['hamstrings'], 'glute', ['bodyweight'], false, 0, [], ['Feet close to hips', 'Drive through heels', 'Squeeze at top']],
+  ['cable-kickback', 'Cable Glute Kickback', 'glutes', [], 'glute', ['cable'], false, 5, [], ['Slight forward lean', 'Kick back and up', 'Don’t arch the low back']],
+  ['standing-calf-raise', 'Standing Calf Raise', 'calves', [], 'calf', ['machine'], false, 10, [], ['Full stretch at bottom', 'Pause at top', 'No bouncing']],
+  ['seated-calf-raise', 'Seated Calf Raise', 'calves', [], 'calf', ['machine'], false, 10, [], ['Pause in the stretch', 'Drive up onto big toe', 'Slow tempo']],
+  ['db-calf-raise', 'Single-Leg Dumbbell Calf Raise', 'calves', [], 'calf', ['dumbbell'], false, 5, [], ['Stand on a step', 'Full range', 'Hold a support'], true],
+  ['bw-calf-raise', 'Bodyweight Calf Raise', 'calves', [], 'calf', ['bodyweight'], false, 0, [], ['On a step edge', 'Full stretch and squeeze', 'Slow']],
+  // ── Core
+  ['cable-crunch', 'Cable Crunch', 'abs', [], 'core', ['cable'], false, 5, ['lowBack'], ['Kneel, rope by head', 'Curl ribs to hips', 'Hips stay still']],
+  ['hanging-leg-raise', 'Hanging Leg Raise', 'abs', [], 'core', ['pullupBar'], false, 0, ['shoulder'], ['Posteriorly tilt pelvis', 'Raise with control', 'No swinging']],
+  ['plank', 'Plank (seconds)', 'abs', [], 'core', ['bodyweight'], false, 0, [], ['Squeeze glutes', 'Ribs down', 'Breathe behind the brace']],
+  ['ab-wheel', 'Ab Wheel Rollout', 'abs', [], 'core', ['bodyweight'], false, 0, ['lowBack', 'shoulder'], ['Hollow body', 'Roll only as far as you can hold position', 'Pull back with abs']],
+  ['dead-bug', 'Dead Bug', 'abs', [], 'core', ['bodyweight'], false, 0, [], ['Low back pressed down', 'Opposite arm and leg', 'Slow exhale']],
+];
+
+export const EXERCISES: ExerciseDef[] = RAW.map(
+  ([id, name, muscle, secondary, pattern, equipment, compound, increment, stresses, cues, perHand]) => ({
+    id,
+    name,
+    muscle,
+    secondary,
+    pattern,
+    equipment,
+    compound,
+    increment,
+    stresses,
+    cues,
+    perHand,
+    setSeconds: compound ? 45 : 35,
+  }),
+);
+
+export const EXERCISE_MAP: Record<string, ExerciseDef> = Object.fromEntries(EXERCISES.map((e) => [e.id, e]));
+
+export function getExercise(id: string): ExerciseDef {
+  return (
+    EXERCISE_MAP[id] ?? {
+      id,
+      name: id,
+      muscle: 'abs',
+      secondary: [],
+      pattern: 'core',
+      equipment: [],
+      compound: false,
+      increment: 5,
+      stresses: [],
+      cues: [],
+    }
+  );
+}
+
+export const MUSCLE_LABEL: Record<Muscle, string> = {
+  chest: 'Chest',
+  back: 'Back',
+  shoulders: 'Shoulders',
+  biceps: 'Biceps',
+  triceps: 'Triceps',
+  quads: 'Quads',
+  hamstrings: 'Hamstrings',
+  glutes: 'Glutes',
+  calves: 'Calves',
+  abs: 'Core',
+};
+
+export const EQUIPMENT_LABEL: Record<Equipment, string> = {
+  barbell: 'Barbell & plates',
+  rack: 'Squat rack',
+  bench: 'Adjustable bench',
+  dumbbell: 'Dumbbells',
+  cable: 'Cable station',
+  machine: 'Selectorized machines',
+  smith: 'Smith machine',
+  pullupBar: 'Pull-up bar',
+  dipStation: 'Dip station',
+  kettlebell: 'Kettlebells',
+  band: 'Resistance bands',
+  bodyweight: 'Bodyweight',
+};
+
+export const ALL_EQUIPMENT = Object.keys(EQUIPMENT_LABEL) as Equipment[];
+
+export const LOCATION_PRESETS: Record<string, Equipment[]> = {
+  commercial: ALL_EQUIPMENT,
+  home: ['barbell', 'rack', 'bench', 'dumbbell', 'pullupBar', 'band', 'bodyweight'],
+  limited: ['dumbbell', 'bench', 'cable', 'machine', 'pullupBar', 'bodyweight'],
+  multiple: ALL_EQUIPMENT,
+};
+
+/** Bodyweight is always available. */
+export function hasEquipment(ex: ExerciseDef, available: Equipment[]): boolean {
+  return ex.equipment.every((e) => e === 'bodyweight' || available.includes(e));
+}
