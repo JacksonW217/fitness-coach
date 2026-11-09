@@ -12,6 +12,7 @@ type Def = [
   stresses: Limitation[],
   cues: string[],
   perHand?: boolean,
+  timed?: boolean,
 ];
 
 const RAW: Def[] = [
@@ -98,10 +99,72 @@ const RAW: Def[] = [
   ['plank', 'Plank (seconds)', 'abs', [], 'core', ['bodyweight'], false, 0, [], ['Squeeze glutes', 'Ribs down', 'Breathe behind the brace']],
   ['ab-wheel', 'Ab Wheel Rollout', 'abs', [], 'core', ['bodyweight'], false, 0, ['lowBack', 'shoulder'], ['Hollow body', 'Roll only as far as you can hold position', 'Pull back with abs']],
   ['dead-bug', 'Dead Bug', 'abs', [], 'core', ['bodyweight'], false, 0, [], ['Low back pressed down', 'Opposite arm and leg', 'Slow exhale']],
+  // ── More chest
+  ['decline-bench', 'Decline Barbell Bench Press', 'chest', ['triceps'], 'hPush', ['barbell', 'bench'], true, 5, ['shoulder'], ['Hook feet securely', 'Bar to lower chest', 'Control the descent']],
+  ['decline-db-press', 'Decline Dumbbell Press', 'chest', ['triceps'], 'hPush', ['dumbbell', 'bench'], true, 5, ['shoulder'], ['Slight decline', 'Deep stretch', 'Press up and in'], true],
+  ['low-high-cable-fly', 'Low-to-High Cable Fly', 'chest', ['shoulders'], 'fly', ['cable'], false, 5, [], ['Handles start low by your hips', 'Sweep up to chin height', 'Targets the upper chest']],
+  ['high-low-cable-fly', 'High-to-Low Cable Fly', 'chest', [], 'fly', ['cable'], false, 5, [], ['Handles start above shoulders', 'Sweep down toward your hips', 'Squeeze at the bottom']],
+  ['machine-fly', 'Machine Fly', 'chest', [], 'fly', ['machine'], false, 5, [], ['Handles at chest height', 'Full stretch', 'Squeeze together']],
+  ['db-pullover', 'Dumbbell Pullover', 'back', ['chest'], 'vPull', ['dumbbell', 'bench'], false, 5, ['shoulder'], ['Hips low, arms slightly bent', 'Lower behind your head to a stretch', 'Pull back over your chest with the lats']],
+  // ── More back
+  ['tbar-row', 'T-Bar Row', 'back', ['biceps', 'traps'], 'hPull', ['barbell'], true, 5, ['lowBack'], ['Chest up, flat back', 'Row to your stomach', 'No heaving']],
+  ['machine-tbar-row', 'Chest-Supported T-Bar Row', 'back', ['biceps', 'traps'], 'hPull', ['machine'], true, 5, [], ['Chest on the pad', 'Drive elbows back', 'Full stretch each rep']],
+  ['pendlay-row', 'Pendlay Row', 'back', ['biceps', 'hamstrings'], 'hPull', ['barbell'], true, 5, ['lowBack'], ['Torso near parallel', 'Each rep starts from the floor', 'Explode up, control down']],
+  ['straight-arm-pulldown', 'Straight-Arm Pulldown', 'back', [], 'vPull', ['cable'], false, 5, [], ['Arms nearly straight', 'Sweep the bar to your thighs', 'Feel the lats, not the triceps']],
+  ['wide-grip-pulldown', 'Wide-Grip Lat Pulldown', 'back', ['biceps'], 'vPull', ['cable'], true, 5, [], ['Hands outside shoulders', 'Pull to upper chest', 'Builds back width']],
+  ['single-arm-pulldown', 'Single-Arm Cable Pulldown', 'back', ['biceps'], 'vPull', ['cable'], false, 5, [], ['Pull elbow down to your side', 'Big stretch at the top', 'Slight lean toward the working side'], true],
+  ['assisted-pull-up', 'Assisted Pull-Up Machine', 'back', ['biceps'], 'vPull', ['machine'], true, 5, [], ['Log the assistance weight', 'Full hang to chin over bar', 'Less assistance = progress']],
+  // ── Traps
+  ['bb-shrug', 'Barbell Shrug', 'traps', [], 'shrug', ['barbell'], false, 10, ['neck'], ['Shrug straight up, not rolled', 'Pause at the top', 'Arms stay straight']],
+  ['db-shrug', 'Dumbbell Shrug', 'traps', [], 'shrug', ['dumbbell'], false, 5, ['neck'], ['Shoulders to ears', 'Hold for a beat', 'Slow lower'], true],
+  ['upright-row', 'Cable Upright Row', 'shoulders', ['traps'], 'lateral', ['cable'], false, 5, ['shoulder'], ['Wide grip', 'Lead with the elbows', 'Stop at chest height']],
+  // ── More shoulders
+  ['arnold-press', 'Arnold Press', 'shoulders', ['triceps'], 'vPush', ['dumbbell', 'bench'], true, 5, ['shoulder'], ['Start palms facing you', 'Rotate as you press', 'Full lockout'], true],
+  ['standing-db-press', 'Standing Dumbbell Shoulder Press', 'shoulders', ['triceps'], 'vPush', ['dumbbell'], true, 5, ['shoulder', 'lowBack'], ['Brace your core', 'Press straight up', 'Don’t lean back'], true],
+  ['machine-lateral', 'Machine Lateral Raise', 'shoulders', [], 'lateral', ['machine'], false, 5, [], ['Pads on the outer arm', 'Raise to shoulder height', 'Slow lower']],
+  ['lean-away-lateral', 'Lean-Away Cable Lateral Raise', 'shoulders', [], 'lateral', ['cable'], false, 5, [], ['Hold the post and lean away', 'Raise out to the side', 'Big stretch at the bottom'], true],
+  ['db-front-raise', 'Dumbbell Front Raise', 'shoulders', [], 'other', ['dumbbell'], false, 5, ['shoulder'], ['Raise to eye level', 'No swinging', 'Front delts are usually trained by pressing'], true],
+  ['rear-delt-cable-fly', 'Rear Delt Cable Fly', 'shoulders', ['back'], 'rearDelt', ['cable'], false, 5, [], ['Cross the cables', 'Pull out and back', 'Lead with the elbows']],
+  // ── More arms
+  ['ez-curl', 'EZ-Bar Curl', 'biceps', ['forearms'], 'biceps', ['barbell'], false, 5, ['elbow'], ['Elbows pinned', 'Squeeze at the top', 'Slow lower']],
+  ['preacher-curl', 'EZ-Bar Preacher Curl', 'biceps', [], 'biceps', ['barbell', 'bench'], false, 5, ['elbow'], ['Armpits on the pad', 'Lower to almost straight', 'No bouncing']],
+  ['machine-preacher', 'Machine Preacher Curl', 'biceps', [], 'biceps', ['machine'], false, 5, [], ['Elbows aligned with the pivot', 'Full range', 'Squeeze at the top']],
+  ['concentration-curl', 'Concentration Curl', 'biceps', [], 'biceps', ['dumbbell', 'bench'], false, 5, [], ['Elbow on inner thigh', 'Curl to your shoulder', 'Slow negative'], true],
+  ['bayesian-curl', 'Bayesian Cable Curl', 'biceps', [], 'biceps', ['cable'], false, 5, [], ['Face away from the cable', 'Arm behind your body for a stretch', 'Curl without moving the elbow'], true],
+  ['rope-hammer-curl', 'Rope Hammer Curl', 'biceps', ['forearms'], 'biceps', ['cable'], false, 5, [], ['Thumbs up', 'Pull the rope apart at the top', 'Elbows still']],
+  ['rope-pushdown', 'Rope Triceps Pushdown', 'triceps', [], 'triceps', ['cable'], false, 5, [], ['Elbows pinned', 'Spread the rope at the bottom', 'Control up']],
+  ['db-kickback', 'Dumbbell Triceps Kickback', 'triceps', [], 'triceps', ['dumbbell', 'bench'], false, 5, [], ['Upper arm parallel to the floor', 'Straighten fully', 'Squeeze'], true],
+  ['machine-tricep-ext', 'Machine Triceps Extension', 'triceps', [], 'triceps', ['machine'], false, 5, [], ['Elbows on the pad', 'Full lockout', 'Slow return']],
+  ['machine-dip', 'Seated Dip Machine', 'triceps', ['chest'], 'triceps', ['machine'], true, 5, ['shoulder'], ['Stay upright', 'Press to lockout', 'Control the stretch']],
+  // ── Forearms & grip
+  ['wrist-curl', 'Dumbbell Wrist Curl', 'forearms', [], 'forearm', ['dumbbell', 'bench'], false, 5, ['wrist'], ['Forearms on your thighs or bench', 'Curl the wrist up', 'Full range'], true],
+  ['reverse-curl', 'Reverse-Grip EZ Curl', 'forearms', ['biceps'], 'forearm', ['barbell'], false, 5, ['elbow', 'wrist'], ['Palms down', 'Elbows pinned', 'Slow lower']],
+  ['farmers-carry', 'Farmer’s Carry (seconds)', 'forearms', ['traps', 'abs'], 'carry', ['dumbbell'], true, 5, ['lowBack'], ['Heavy bells, tall posture', 'Short, quick steps', 'Log seconds walked'], true, true],
+  ['dead-hang', 'Dead Hang (seconds)', 'forearms', ['back'], 'forearm', ['pullupBar'], false, 0, ['shoulder'], ['Full grip, shoulders engaged', 'Breathe', 'Log seconds held'], false, true],
+  // ── More legs
+  ['trap-bar-deadlift', 'Trap Bar Deadlift', 'quads', ['glutes', 'hamstrings', 'back'], 'hinge', ['trapBar'], true, 10, ['lowBack'], ['Stand in the center', 'Push the floor away', 'Lock out with the glutes']],
+  ['sumo-deadlift', 'Sumo Deadlift', 'glutes', ['hamstrings', 'quads', 'back'], 'hinge', ['barbell'], true, 10, ['lowBack', 'hip'], ['Wide stance, toes out', 'Knees track over toes', 'Chest up, push the floor apart']],
+  ['good-morning', 'Good Morning', 'hamstrings', ['glutes', 'back'], 'hinge', ['barbell', 'rack'], true, 5, ['lowBack'], ['Bar on upper back', 'Push hips back with soft knees', 'Stop at a hamstring stretch']],
+  ['back-extension', 'Back Extension (45°)', 'glutes', ['hamstrings', 'back'], 'glute', ['machine'], false, 5, ['lowBack'], ['Pad below your hips', 'Round slightly to target glutes', 'Hold a plate to add load']],
+  ['db-step-up', 'Dumbbell Step-Up', 'quads', ['glutes'], 'lunge', ['dumbbell', 'bench'], true, 5, ['knee'], ['Whole foot on the box', 'Drive through the front heel', 'Don’t push off the back leg'], true],
+  ['smith-split-squat', 'Smith Machine Split Squat', 'quads', ['glutes'], 'lunge', ['smith'], true, 5, ['knee'], ['Long stance', 'Back knee toward the floor', 'Stay upright']],
+  ['belt-squat', 'Belt Squat', 'quads', ['glutes'], 'squat', ['machine'], true, 10, ['knee'], ['Upright torso', 'Sit straight down', 'Spine-friendly squat']],
+  ['pendulum-squat', 'Pendulum Squat', 'quads', ['glutes'], 'squat', ['machine'], true, 10, ['knee'], ['Feet mid-platform', 'Deep knee bend', 'Control the bottom']],
+  ['machine-hip-thrust', 'Machine Hip Thrust', 'glutes', ['hamstrings'], 'glute', ['machine'], false, 10, [], ['Chin tucked', 'Drive through the heels', 'Squeeze hard at the top']],
+  ['hip-abduction', 'Hip Abduction Machine', 'glutes', [], 'glute', ['machine'], false, 5, [], ['Lean slightly forward for more glute', 'Push knees out', 'Slow return']],
+  ['hip-adduction', 'Hip Adduction Machine', 'quads', [], 'other', ['machine'], false, 5, ['hip'], ['Inner thighs', 'Squeeze legs together', 'Control the stretch']],
+  ['leg-press-calf', 'Leg Press Calf Raise', 'calves', [], 'calf', ['machine'], false, 10, [], ['Balls of feet on the edge', 'Deep stretch', 'Pause at the top']],
+  // ── More core
+  ['captains-chair', 'Captain’s Chair Knee Raise', 'abs', [], 'core', ['dipStation'], false, 0, [], ['Back against the pad', 'Curl knees to chest', 'No swinging']],
+  ['decline-situp', 'Decline Sit-Up', 'abs', [], 'core', ['bench'], false, 0, [], ['Hook your feet', 'Curl up, don’t yank the neck', 'Hold a plate to progress']],
+  ['ab-machine', 'Ab Crunch Machine', 'abs', [], 'core', ['machine'], false, 5, [], ['Crunch the ribs toward the hips', 'Don’t pull with the arms', 'Slow return']],
+  ['pallof-press', 'Pallof Press', 'abs', [], 'core', ['cable'], false, 5, [], ['Stand side-on to the cable', 'Press straight out and resist rotation', 'Brace hard'], true],
+  ['russian-twist', 'Russian Twist', 'abs', [], 'core', ['bodyweight'], false, 0, [], ['Lean back, chest up', 'Rotate shoulders, not just arms', 'Count each side']],
+  ['side-plank', 'Side Plank (seconds)', 'abs', [], 'core', ['bodyweight'], false, 0, [], ['Hips high', 'Straight line head to heels', 'Log seconds per side'], false, true],
 ];
 
 export const EXERCISES: ExerciseDef[] = RAW.map(
-  ([id, name, muscle, secondary, pattern, equipment, compound, increment, stresses, cues, perHand]) => ({
+  ([id, name, muscle, secondary, pattern, equipment, compound, increment, stresses, cues, perHand, timed]) => ({
     id,
     name,
     muscle,
@@ -113,6 +176,7 @@ export const EXERCISES: ExerciseDef[] = RAW.map(
     stresses,
     cues,
     perHand,
+    timed: timed || id === 'plank' || undefined,
     setSeconds: compound ? 45 : 35,
   }),
 );
@@ -147,6 +211,8 @@ export const MUSCLE_LABEL: Record<Muscle, string> = {
   glutes: 'Glutes',
   calves: 'Calves',
   abs: 'Core',
+  traps: 'Traps',
+  forearms: 'Forearms',
 };
 
 export const EQUIPMENT_LABEL: Record<Equipment, string> = {
@@ -161,6 +227,7 @@ export const EQUIPMENT_LABEL: Record<Equipment, string> = {
   dipStation: 'Dip station',
   kettlebell: 'Kettlebells',
   band: 'Resistance bands',
+  trapBar: 'Trap / hex bar',
   bodyweight: 'Bodyweight',
 };
 
@@ -177,3 +244,47 @@ export const LOCATION_PRESETS: Record<string, Equipment[]> = {
 export function hasEquipment(ex: ExerciseDef, available: Equipment[]): boolean {
   return ex.equipment.every((e) => e === 'bodyweight' || available.includes(e));
 }
+
+/**
+ * User-created exercises live in IndexedDB; they're merged into EXERCISES and
+ * EXERCISE_MAP at startup (and after each change) so every engine, picker and
+ * the coach prompt treat them exactly like built-in exercises.
+ */
+export function registerCustomExercises(list: ExerciseDef[]) {
+  for (let i = EXERCISES.length - 1; i >= 0; i--) {
+    if (EXERCISES[i].custom) {
+      delete EXERCISE_MAP[EXERCISES[i].id];
+      EXERCISES.splice(i, 1);
+    }
+  }
+  for (const ex of list) {
+    const def: ExerciseDef = { ...ex, custom: true, setSeconds: ex.setSeconds ?? (ex.compound ? 45 : 35) };
+    EXERCISES.push(def);
+    EXERCISE_MAP[def.id] = def;
+  }
+}
+
+export const PATTERN_LABEL: Record<Pattern, string> = {
+  squat: 'Squat (knee-dominant, both legs)',
+  hinge: 'Hinge (deadlift / RDL style)',
+  lunge: 'Lunge / single-leg',
+  kneeExt: 'Leg extension',
+  kneeFlex: 'Leg curl',
+  calf: 'Calf raise',
+  hPush: 'Flat press (chest)',
+  inclinePush: 'Incline press',
+  vPush: 'Overhead press',
+  hPull: 'Row',
+  vPull: 'Pull-down / pull-up',
+  fly: 'Chest fly',
+  lateral: 'Lateral raise',
+  rearDelt: 'Rear-delt raise / face pull',
+  biceps: 'Biceps curl',
+  triceps: 'Triceps extension / pushdown',
+  core: 'Core / abs',
+  glute: 'Glute isolation (thrust, kickback)',
+  shrug: 'Shrug',
+  forearm: 'Forearm / grip',
+  carry: 'Carry',
+  other: 'Other',
+};

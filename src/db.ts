@@ -1,5 +1,6 @@
 import Dexie, { type EntityTable } from 'dexie';
-import type { AdaptRecord, BodyWeight, CheckIn, CoachNote, FoodEntry, Measurement, Profile, Program, ProgramChange, Session } from './types';
+import { registerCustomExercises } from './data/exercises';
+import type { ExerciseDef, AdaptRecord, BodyWeight, CheckIn, CoachNote, FoodEntry, Measurement, Profile, Program, ProgramChange, Session } from './types';
 
 export const db = new Dexie('forge') as Dexie & {
   profile: EntityTable<Profile, 'id'>;
@@ -12,6 +13,7 @@ export const db = new Dexie('forge') as Dexie & {
   food: EntityTable<FoodEntry, 'id'>;
   checkins: EntityTable<CheckIn, 'id'>;
   adaptations: EntityTable<AdaptRecord, 'key'>;
+  customExercises: EntityTable<CustomExercise, 'id'>;
 };
 
 db.version(1).stores({
@@ -24,6 +26,24 @@ db.version(1).stores({
 });
 db.version(2).stores({ coach: 'id, at' });
 db.version(3).stores({ food: 'id, date', checkins: 'id, &date', adaptations: 'key' });
+db.version(4).stores({ customExercises: 'id' });
+
+/** A user-created exercise. `archived` ones stay resolvable for history but are hidden from pickers. */
+export type CustomExercise = ExerciseDef;
+
+/** Load user-created exercises into the in-memory catalog. */
+export async function loadCustomExercises() {
+  try {
+    registerCustomExercises(await db.customExercises.toArray());
+  } catch {
+    /* storage unavailable: built-ins still work */
+  }
+}
+
+export async function saveCustomExercise(ex: CustomExercise) {
+  await db.customExercises.put({ ...ex, custom: true });
+  await loadCustomExercises();
+}
 
 /** Ask Safari not to evict our storage. Best-effort. */
 export async function requestPersistence() {
@@ -34,7 +54,7 @@ export async function requestPersistence() {
   }
 }
 
-const TABLES = ['profile', 'programs', 'changes', 'sessions', 'bodyweights', 'measurements', 'coach', 'food', 'checkins', 'adaptations'] as const;
+const TABLES = ['profile', 'programs', 'changes', 'sessions', 'bodyweights', 'measurements', 'coach', 'food', 'checkins', 'adaptations', 'customExercises'] as const;
 
 export async function exportAll() {
   const data: Record<string, unknown[]> = {};
@@ -51,6 +71,7 @@ export async function importAll(json: unknown) {
       if (Array.isArray(j.data![t])) await db.table(t).bulkAdd(j.data![t]); // older backups may lack newer tables
     }
   });
+  await loadCustomExercises();
 }
 
 export async function wipeAll() {

@@ -22,7 +22,7 @@ export const GOAL_LABEL: Record<Goal, string> = {
   athletic: 'Athletic performance',
   endurance: 'Improve endurance',
   general: 'General fitness',
-  physique: 'A particular physique',
+  physique: 'Aesthetic physique (V-taper, balanced)',
   maintain: 'Maintain my physique',
 };
 export const LIMIT_LABEL: Record<Limitation, string> = {

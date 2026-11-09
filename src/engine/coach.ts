@@ -3,7 +3,7 @@
  * actual records to paste into the Claude app, and parses a structured block
  * of proposed program changes from Claude's reply for in-app approval.
  */
-import { EXERCISES, getExercise, hasEquipment, MUSCLE_LABEL, EQUIPMENT_LABEL } from '../data/exercises';
+import { EXERCISES, getExercise, hasEquipment, MUSCLE_LABEL, EQUIPMENT_LABEL, PATTERN_LABEL } from '../data/exercises';
 import { fmtHeight, fmtNum, fmtDate, WEEKDAYS_LONG } from '../lib/util';
 import type { BodyWeight, CheckIn, CoachNote, FoodEntry, Measurement, Muscle, Profile, Program, ProgramExercise, Session, Weekday } from '../types';
 import { byDate, targetsFor } from './nutrition';
@@ -93,6 +93,14 @@ export function buildCoachPrompt(args: {
   out += line(`- Style: ${p.style}${p.trainingStyles ? `; ${p.trainingStyles}` : ''}`);
   if (p.favoriteExercises.length) out += line(`- Favorites: ${p.favoriteExercises.map((i) => getExercise(i).name).join(', ')}`);
   if (p.dislikedExercises.length) out += line(`- Dislikes: ${p.dislikedExercises.map((i) => getExercise(i).name).join(', ')}`);
+  const customs = EXERCISES.filter((e) => e.custom && !e.archived);
+  if (customs.length) {
+    out += line('- Exercises I added myself (treat them like any other exercise):');
+    for (const e of customs)
+      out += line(
+        `  - ${e.name}: ${MUSCLE_LABEL[e.muscle]}${e.secondary.length ? ` (also ${e.secondary.map((m) => MUSCLE_LABEL[m]).join(', ')})` : ''}; ${PATTERN_LABEL[e.pattern].toLowerCase()}; ${e.equipment.map((q) => EQUIPMENT_LABEL[q]).join(', ') || 'no equipment'}; ${e.timed ? 'logged in seconds' : e.increment === 0 ? 'bodyweight reps' : `weight × reps${e.perHand ? ' (per hand)' : ''}`}${e.notes ? `. Notes: ${e.notes}` : ''}`,
+      );
+  }
   if (p.cannotPerform.length) out += line(`- Cannot perform: ${p.cannotPerform.map((i) => getExercise(i).name).join(', ')}`);
   if (p.limitations.length || p.limitationNotes) out += line(`- Limitations: ${p.limitations.join(', ')}${p.limitationNotes ? ` — ${p.limitationNotes}` : ''}`);
   out += line(`- Nutrition: goal ${p.nutritionGoal}${p.dietPreferences ? `; ${p.dietPreferences}` : ''}${p.foodRestrictions ? `; restrictions: ${p.foodRestrictions}` : ''}`);
@@ -202,7 +210,7 @@ export function buildCoachPrompt(args: {
   }
 
   if (program) {
-    const avail = EXERCISES.filter((e) => hasEquipment(e, p.equipment) && !p.cannotPerform.includes(e.id)).map((e) => e.name);
+    const avail = EXERCISES.filter((e) => !e.archived && (e.custom || hasEquipment(e, p.equipment)) && !p.cannotPerform.includes(e.id)).map((e) => e.name);
     out += line('');
     out += line(`Available exercises (use these exact names in forge-changes): ${avail.join(', ')}`);
   }

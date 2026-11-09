@@ -25,6 +25,7 @@ export type Equipment =
   | 'dipStation'
   | 'kettlebell'
   | 'band'
+  | 'trapBar'
   | 'bodyweight';
 export type StylePref = 'freeWeights' | 'machines' | 'cables' | 'bodyweight' | 'mixed';
 export type SplitPref = 'auto' | 'fullBody' | 'upperLower' | 'ppl' | 'bro' | 'hybrid';
@@ -39,7 +40,9 @@ export type Muscle =
   | 'hamstrings'
   | 'glutes'
   | 'calves'
-  | 'abs';
+  | 'abs'
+  | 'traps'
+  | 'forearms';
 
 export interface Profile {
   id: 'me';
@@ -125,6 +128,15 @@ export interface ExerciseDef {
   cues: string[];
   /** Typical seconds of work per set, used for time estimates. */
   setSeconds?: number;
+  /** "Reps" are logged as seconds (planks, carries, holds). */
+  timed?: boolean;
+  /** Created by the user in the app. */
+  custom?: boolean;
+  /** User's own description, shown to the coach. */
+  notes?: string;
+  createdAt?: string;
+  /** Removed by the user: hidden from pickers, kept so history still resolves. */
+  archived?: boolean;
 }
 
 export type Pattern =
@@ -145,7 +157,11 @@ export type Pattern =
   | 'biceps'
   | 'triceps'
   | 'core'
-  | 'glute';
+  | 'glute'
+  | 'shrug'
+  | 'forearm'
+  | 'carry'
+  | 'other';
 
 export interface ProgramExercise {
   id: string; // unique within program

@@ -452,7 +452,7 @@ function ExerciseCard({
         <button style={{ border: 'none', background: 'none', padding: 0, textAlign: 'left', flex: 1 }} onClick={() => setCues(!cues)}>
           <div className="headline">{def.name}</div>
           <div className="foot">
-            {MUSCLE_LABEL[def.muscle]} · {ex.repMin}–{ex.repMax} reps · rest {fmtRest(ex.restSec)}
+            {MUSCLE_LABEL[def.muscle]} · {ex.repMin}–{ex.repMax} {def.timed ? 'sec' : 'reps'} · rest {fmtRest(ex.restSec)}
             {def.perHand ? ' · lb per hand' : ''}
           </div>
         </button>
@@ -492,7 +492,7 @@ function ExerciseCard({
       <div className="set-grid head">
         <span style={{ textAlign: 'center' }}>Set</span>
         <span style={{ textAlign: 'center' }}>lb</span>
-        <span style={{ textAlign: 'center' }}>Reps</span>
+        <span style={{ textAlign: 'center' }}>{def.timed ? 'Sec' : 'Reps'}</span>
         <span style={{ textAlign: 'center' }}>RPE</span>
         <span />
       </div>

@@ -39,6 +39,25 @@ const T: Record<string, DayTemplate> = {
   arms: { key: 'arms', name: 'Arms', focus: 'Biceps & triceps', muscles: ['biceps', 'triceps'], slots: [S(['hPush'], 1, 'triceps'), S(['biceps'], 2), S(['triceps'], 2), S(['biceps'], 3), S(['triceps'], 3), S(['biceps'], 3)] },
 };
 
+/**
+ * Extra slots for an aesthetic (physique) goal: side delts and back width for a
+ * V-taper, upper chest, and arms. They go right after the main lifts so time
+ * trimming drops calves/core before these.
+ */
+const AESTHETIC_EXTRAS: Record<string, Slot[]> = {
+  fullA: [S(['vPull'], 3)],
+  fullB: [S(['lateral'], 3), S(['biceps'], 3)],
+  fullC: [S(['biceps'], 3)],
+  upperA: [S(['inclinePush', 'fly'], 3)],
+  upperB: [S(['lateral'], 3)],
+  push: [S(['lateral'], 3)],
+  pull: [S(['lateral'], 3), S(['shrug'], 3)],
+  shoulders: [S(['shrug'], 3)],
+  arms: [S(['forearm'], 3)],
+};
+
+export const wantsAesthetic = (p: Profile) => p.goals.slice(0, 3).includes('physique');
+
 export interface SplitChoice {
   name: string;
   days: string[]; // template keys in weekly order
@@ -130,8 +149,8 @@ export function schemeFor(p: Profile, priority: 1 | 2 | 3, ex: ExerciseDef): Sch
   if (goal === 'maintain' && priority > 1) s.sets = Math.max(2, s.sets - 1);
   if (ex.increment === 0) {
     s = { ...s, repMin: Math.max(s.repMin, 8), repMax: Math.max(s.repMax, 15) };
-    if (ex.id === 'plank') s = { ...s, repMin: 30, repMax: 60 };
   }
+  if (ex.timed) s = { ...s, repMin: 30, repMax: 60 };
   if (ex.pattern === 'core' && ex.increment > 0) s = { ...s, repMin: 10, repMax: 15 };
   if (ex.pattern === 'calf') s = { ...s, repMin: Math.max(s.repMin, 8), repMax: Math.max(s.repMax, 15) };
   return s;
@@ -141,7 +160,7 @@ export function schemeFor(p: Profile, priority: 1 | 2 | 3, ex: ExerciseDef): Sch
 export function candidatesFor(p: Profile, slot: { patterns: Pattern[]; muscle?: Muscle; priority: 1 | 2 | 3 }, used = new Set<string>()): ExerciseDef[] {
   for (const pattern of slot.patterns) {
     const scored = EXERCISES.map((ex, idx) => ({ ex, idx }))
-      .filter(({ ex }) => ex.pattern === pattern && (!slot.muscle || ex.muscle === slot.muscle))
+      .filter(({ ex }) => !ex.archived && ex.pattern === pattern && (!slot.muscle || ex.muscle === slot.muscle))
       .filter(({ ex }) => hasEquipment(ex, p.equipment))
       .filter(({ ex }) => !p.cannotPerform.includes(ex.id))
       .filter(({ ex }) => !ex.stresses.some((s) => p.limitations.includes(s)))
@@ -230,7 +249,14 @@ export function buildDay(p: Profile, tpl: DayTemplate, minutes: number, used: Se
   const exercises: ProgramExercise[] = [];
   const notes: string[] = [];
   const inDay = new Set<string>();
-  for (const slot of tpl.slots) {
+  let slots = tpl.slots;
+  const extras = wantsAesthetic(p) ? AESTHETIC_EXTRAS[tpl.key] ?? [] : [];
+  if (extras.length) {
+    const firstAccessory = slots.findIndex((x) => x.priority === 3);
+    const at = firstAccessory < 0 ? slots.length : firstAccessory;
+    slots = [...slots.slice(0, at), ...extras, ...slots.slice(at)];
+  }
+  for (const slot of slots) {
     const cands = candidatesFor(p, slot, used).filter((c) => !inDay.has(c.id));
     const ex = cands[0];
     if (!ex) continue;
@@ -285,7 +311,7 @@ export function generateProgram(p: Profile): Program {
     strength: 'Main lifts use heavier sets of 4–6 with longer rest; accessories stay in moderate rep ranges to build supporting muscle.',
     athletic: 'Main lifts are heavy and low-rep to build force; accessories support balanced, durable joints.',
     muscle: 'Rep ranges sit mostly between 6 and 15, where muscle growth is well supported, with enough sets per muscle each week.',
-    physique: 'Rep ranges sit mostly between 6 and 15, with extra isolation work for the details that shape a physique.',
+    physique: 'Built for an aesthetic physique: rep ranges mostly 6–15, plus extra side-delt, back-width, upper-chest and arm work for a V-taper look.',
     fatLoss: 'Training stays heavy enough to keep the muscle you have while you lose fat; diet does most of the fat-loss work.',
     endurance: 'Higher reps and shorter rests build muscular endurance.',
     general: 'Balanced moderate rep ranges build strength and fitness without excessive fatigue.',
@@ -296,6 +322,8 @@ export function generateProgram(p: Profile): Program {
     split.why,
     `Training days: ${trainingDays.map((d) => WEEKDAYS_LONG[d]).join(', ')}.`,
     goalLine[goal],
+    goal !== 'physique' && wantsAesthetic(p) ? 'Because an aesthetic physique is one of your goals, extra side-delt, back-width, upper-chest and arm work is added after the main lifts.' : '',
+    goal !== 'strength' && p.goals.slice(1, 3).includes('strength') ? 'Strength is also a goal, so your main lifts use heavier sets of 5–8.' : '',
     'Progression uses double progression: stay at a weight until every set reaches the top of the rep range, then add the smallest jump. You confirm every weight increase.',
     p.limitations.length ? `Exercises that load your ${p.limitations.join(', ').replace('lowBack', 'lower back')} were filtered out. This isn't medical advice — follow your clinician's guidance.` : '',
     ...notes,

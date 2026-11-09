@@ -3,16 +3,19 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { registerSW } from 'virtual:pwa-register';
 import App from './App';
-import { requestPersistence } from './db';
+import { loadCustomExercises, requestPersistence } from './db';
 import './styles.css';
 
 registerSW({ immediate: true });
 requestPersistence();
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <BrowserRouter>
-      <App />
-    </BrowserRouter>
-  </StrictMode>,
+// Custom exercises must be in the catalog before any screen resolves exercise ids.
+loadCustomExercises().finally(() =>
+  createRoot(document.getElementById('root')!).render(
+    <StrictMode>
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>
+    </StrictMode>,
+  ),
 );
