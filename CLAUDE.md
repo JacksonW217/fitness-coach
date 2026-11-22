@@ -27,7 +27,7 @@ anything.
   to `main` redeploys.
 - All data is in IndexedDB (Dexie, `src/db.ts`) **on the device only**. No
   server, no account. Profile has export/import backup.
-- Commands: `npm run dev`, `npm test` (Vitest, 35 tests), `npm run build`.
+- Commands: `npm run dev`, `npm test` (Vitest), `npm run build`.
   `tsconfig.tsbuildinfo` is tracked and changes on every build; commit it with
   your change.
 - Testing UI: `npx vite preview` + Playwright with the `iPhone 13` device.
@@ -55,6 +55,9 @@ anything.
   so every engine treats them like built-ins. Removed ones are `archived`, not
   deleted, so history still resolves. Exercise ids are keys in saved history:
   **never rename an id**.
+- Exercises are reordered by dragging (`src/components/DragList.tsx`), both in
+  Program → day and in a workout (Reorder button / exercise menu). Every drag in
+  a workout can be undone.
 - `timed` exercises log seconds in the reps field (planks, carries, hangs).
 - Goals are ordered by priority. `physique` anywhere in the top three turns on
   the aesthetic extras (side delts, back width, upper chest, arms) in

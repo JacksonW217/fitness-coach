@@ -1,4 +1,5 @@
-import { ArrowDown, ArrowUp, Star } from 'lucide-react';
+import { Star } from 'lucide-react';
+import { DragList } from '../components/DragList';
 import { useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { fmtRest } from '../components/DayList';
@@ -50,28 +51,25 @@ export default function ProgramDayEdit() {
       <div className="foot" style={{ margin: '2px 4px 0' }}>Estimated {estimateMinutes(day.exercises)} min including warm-up</div>
 
       <Section>
-        <div className="list">
-          {day.exercises.map((x, i) => {
+        <DragList
+          items={day.exercises}
+          itemKey={(x) => x.id}
+          onReorder={(from, to) => {
+            const name = getExercise(day.exercises[from].exerciseId).name;
+            void update((_, l) => { const [m] = l.splice(from, 1); l.splice(to, 0, m); }, 'reorder', `moved ${name} to position ${to + 1}`);
+          }}
+          render={(x) => {
             const def = getExercise(x.exerciseId);
             const fav = profile?.favoriteExercises.includes(def.id);
             return (
-              <div className="list-row" key={x.id}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  <button className="icon-btn plain" style={{ width: 28, height: 24, opacity: i ? 1 : 0.25 }} disabled={!i} aria-label="Move up" onClick={() => update((_, l) => { const [m] = l.splice(i, 1); l.splice(i - 1, 0, m); }, 'reorder', `moved ${def.name} up`)}>
-                    <ArrowUp size={16} />
-                  </button>
-                  <button className="icon-btn plain" style={{ width: 28, height: 24, opacity: i < day.exercises.length - 1 ? 1 : 0.25 }} disabled={i >= day.exercises.length - 1} aria-label="Move down" onClick={() => update((_, l) => { const [m] = l.splice(i, 1); l.splice(i + 1, 0, m); }, 'reorder', `moved ${def.name} down`)}>
-                    <ArrowDown size={16} />
-                  </button>
-                </div>
-                <button className="grow" style={{ border: 'none', background: 'none', textAlign: 'left', padding: 0 }} onClick={() => { setEditing(x.id); setDr({ sets: x.sets, repMin: x.repMin, repMax: x.repMax, restSec: x.restSec, warmup: x.warmup }); }}>
-                  <div style={{ fontWeight: 500 }}>{def.name} {fav && <Star size={12} fill="currentColor" style={{ verticalAlign: 0 }} />}</div>
-                  <div className="foot">{MUSCLE_LABEL[def.muscle]} · {x.sets} × {x.repMin}–{x.repMax} · rest {fmtRest(x.restSec)}</div>
-                </button>
-              </div>
+              <button className="grow" style={{ border: 'none', background: 'none', textAlign: 'left', padding: 0 }} onClick={() => { setEditing(x.id); setDr({ sets: x.sets, repMin: x.repMin, repMax: x.repMax, restSec: x.restSec, warmup: x.warmup }); }}>
+                <div style={{ fontWeight: 500 }}>{def.name} {fav && <Star size={12} fill="currentColor" style={{ verticalAlign: 0 }} />}</div>
+                <div className="foot">{MUSCLE_LABEL[def.muscle]} · {x.sets} × {x.repMin}–{x.repMax} · rest {fmtRest(x.restSec)}</div>
+              </button>
             );
-          })}
-        </div>
+          }}
+        />
+        <p className="foot" style={{ margin: '8px 4px 0' }}>Drag the grip to reorder. Tap an exercise to change its sets, reps or rest.</p>
         <button className="btn secondary" style={{ marginTop: 12 }} onClick={() => setAdding(true)}>Add exercise</button>
       </Section>
 

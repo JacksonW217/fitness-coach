@@ -91,7 +91,7 @@ export function analyzeProgram(input: AdaptInput): AdaptResult {
   }
 
   const out: Proposal[] = [];
-  const cons = consistency(program, done);
+  const cons = consistency(program, done, now);
   const allPe = program.days.flatMap((d) => d.exercises.map((pe) => ({ d, pe })));
   const goal = profile.goals[0];
   const hypertrophy = goal === 'muscle' || goal === 'physique';

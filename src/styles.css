@@ -80,6 +80,20 @@ textarea { resize: vertical; }
 .list-row .value { color: var(--ink-2); }
 .list-row .chev { color: var(--ink-3); flex: none; }
 
+/* Drag to reorder */
+.drag-list { position: relative; overflow: visible; }
+.drag-row { display: flex; align-items: center; gap: 4px; padding: 6px 16px 6px 4px; min-height: 58px; position: relative; background: var(--fill); }
+.drag-list > .drag-row:first-child { border-radius: var(--radius) var(--radius) 0 0; }
+.drag-list > .drag-row:last-child { border-radius: 0 0 var(--radius) var(--radius); }
+.drag-list > .drag-row:only-child { border-radius: var(--radius); }
+.drag-row + .drag-row::before { content: ''; position: absolute; top: 0; left: 52px; right: 0; height: 1px; background: var(--line); }
+.drag-row.active { z-index: 2; border-radius: 14px; background: var(--fill-2); box-shadow: 0 10px 28px rgba(0,0,0,0.45), 0 0 0 1.5px var(--accent); }
+.drag-row.active::before, .drag-row.active + .drag-row::before { display: none; }
+.drag-handle { width: 44px; height: 44px; flex: none; display: grid; place-items: center; border: none; background: none; color: var(--ink-3); touch-action: none; cursor: grab; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.drag-row.active .drag-handle { color: var(--accent); cursor: grabbing; }
+.drag-body { flex: 1; min-width: 0; display: flex; align-items: center; }
+.drag-list.dragging { -webkit-user-select: none; user-select: none; }
+
 /* Buttons */
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 50px; padding: 0 20px; border-radius: 14px; border: none; font-weight: 600; font-size: 17px; background: var(--accent); color: var(--on-accent); width: 100%; transition: transform 0.08s ease, opacity 0.15s; }
 .btn:active { transform: scale(0.98); }

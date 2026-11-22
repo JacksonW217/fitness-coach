@@ -201,19 +201,19 @@ export function weekStats(sessions: Session[]) {
 }
 
 /** Rolling 4-week consistency: done / planned. */
-export function consistency(program: Program | undefined, sessions: Session[]) {
+export function consistency(program: Program | undefined, sessions: Session[], now = new Date()) {
   if (!program) return undefined;
   const planned = Object.values(program.schedule).filter(Boolean).length * 4;
-  const since = new Date();
+  const since = new Date(now);
   since.setDate(since.getDate() - 28);
   const firstDone = sessions.filter((s) => s.status === 'done').map((s) => s.startedAt).sort()[0];
   if (!firstDone) return undefined;
   // Count from when you started training with the app (or 4 weeks ago, whichever is later).
   const start = Math.min(new Date(program.createdAt).getTime(), new Date(firstDone).getTime());
   const effectiveSince = new Date(Math.max(since.getTime(), start));
-  const weeks = Math.max(1, Math.ceil(daysBetween(effectiveSince, new Date()) / 7));
+  const weeks = Math.max(1, Math.ceil(daysBetween(effectiveSince, now) / 7));
   const p = Math.min(planned, Object.values(program.schedule).filter(Boolean).length * weeks);
-  const n = sessions.filter((s) => s.status === 'done' && new Date(s.startedAt) >= effectiveSince).length;
+  const n = sessions.filter((s) => s.status === 'done' && new Date(s.startedAt) >= effectiveSince && new Date(s.startedAt) <= now).length;
   return { done: n, planned: p, pct: p ? Math.min(100, Math.round((n / p) * 100)) : 0 };
 }
 

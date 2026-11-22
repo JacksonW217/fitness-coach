@@ -1,4 +1,5 @@
-import { Check, ChevronDown, MoreHorizontal, Pause, Play, Plus, Undo2 } from 'lucide-react';
+import { ArrowUpDown, Check, ChevronDown, MoreHorizontal, Pause, Play, Plus, Undo2 } from 'lucide-react';
+import { DragList, moveItem } from '../components/DragList';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fmtRest } from '../components/DayList';
@@ -54,6 +55,7 @@ export default function Workout() {
   const undoStack = useRef<Session[]>([]);
   const [toast, setToast] = useState<{ msg: string; undo?: boolean } | null>(null);
   const [menuFor, setMenuFor] = useState<string | null>(null);
+  const [reordering, setReordering] = useState(false);
   const [swapFor, setSwapFor] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [finishing, setFinishing] = useState(false);
@@ -292,9 +294,16 @@ export default function Workout() {
         />
       ))}
 
-      <button className="btn secondary" style={{ marginTop: 16 }} onClick={() => setAdding(true)}>
-        <Plus size={18} /> Add exercise
-      </button>
+      <div className="btn-row" style={{ marginTop: 16 }}>
+        <button className="btn secondary" onClick={() => setAdding(true)}>
+          <Plus size={18} /> Add exercise
+        </button>
+        {session.exercises.length > 1 && (
+          <button className="btn secondary" onClick={() => setReordering(true)}>
+            <ArrowUpDown size={18} /> Reorder
+          </button>
+        )}
+      </div>
 
       <div className="card" style={{ marginTop: 16 }}>
         <button className="row between" style={{ width: '100%', border: 'none', background: 'none', padding: 0 }} onClick={() => setNotesOpen(!notesOpen)}>
@@ -340,20 +349,34 @@ export default function Workout() {
             >
               Skip remaining sets
             </button>
-            {(() => {
-              const i = session.exercises.findIndex((e) => e.id === menuEx.id);
-              return (
-                <>
-                  {i > 0 && <button className="list-row" onClick={() => { mutate((s) => { const [x] = s.exercises.splice(i, 1); s.exercises.splice(i - 1, 0, x); }, { undoable: true }); setMenuFor(null); }}>Move up</button>}
-                  {i < session.exercises.length - 1 && <button className="list-row" onClick={() => { mutate((s) => { const [x] = s.exercises.splice(i, 1); s.exercises.splice(i + 1, 0, x); }, { undoable: true }); setMenuFor(null); }}>Move down</button>}
-                </>
-              );
-            })()}
+            {session.exercises.length > 1 && (
+              <button className="list-row" onClick={() => { setMenuFor(null); setReordering(true); }}>Reorder exercises</button>
+            )}
             <button className="list-row" style={{ color: 'var(--bad)' }} onClick={() => { mutate((s) => void (s.exercises = s.exercises.filter((e) => e.id !== menuEx.id)), { undoable: true }); setMenuFor(null); setToast({ msg: 'Exercise removed', undo: true }); }}>
               Remove from today
             </button>
           </div>
         )}
+      </Sheet>
+
+      {/* Reorder */}
+      <Sheet open={reordering} onClose={() => setReordering(false)} title="Reorder exercises" right={<button className="link-btn" onClick={() => setReordering(false)}>Done</button>}>
+        <p className="foot" style={{ margin: '0 4px 10px' }}>Drag the grip on the left to move an exercise. Changes apply right away and can be undone.</p>
+        <DragList
+          items={session.exercises}
+          itemKey={(e) => e.id}
+          onReorder={(from, to) => mutate((s) => void (s.exercises = moveItem(s.exercises, from, to)), { undoable: true })}
+          render={(e) => {
+            const work = e.sets.filter((x) => x.kind === 'work');
+            const left = work.filter((x) => x.status === 'pending').length;
+            return (
+              <div className="grow">
+                <div style={{ fontWeight: 500 }}>{getExercise(e.exerciseId).name}</div>
+                <div className="foot">{left === 0 ? 'Done' : left === work.length ? `${work.length} sets` : `${left} of ${work.length} sets left`}</div>
+              </div>
+            );
+          }}
+        />
       </Sheet>
 
       {/* Set menu */}
