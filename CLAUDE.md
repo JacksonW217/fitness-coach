@@ -10,8 +10,9 @@ anything.
   Units are **pounds and inches**.
 - Not technical. Explain changes in plain language. They test on a real iPhone.
 - Hard rules they set:
-  - **Completely free.** No API keys or paid services. Hosting is Vercel's free
-    tier.
+  - **Completely free.** No paid services. Hosting is Vercel's free tier. The
+    one exception the owner approved (Nov 2026) is lock-screen rest alerts, which
+    use two tiny Vercel functions and Upstash QStash's free plan; see below.
   - **Claude coaching happens in the owner's own Claude app by copy and paste**
     (they have a Pro plan). The app never calls an AI API.
   - **Never invent numbers.** With no logged history for an exercise the app
@@ -26,7 +27,8 @@ anything.
 - Vite + React 19 + TypeScript, `vite-plugin-pwa`. Static site on Vercel; a push
   to `main` redeploys.
 - All data is in IndexedDB (Dexie, `src/db.ts`) **on the device only**. No
-  server, no account. Profile has export/import backup.
+  account. Profile has export/import backup. The only server code is the rest
+  alert functions in `api/`; they store nothing.
 - Commands: `npm run dev`, `npm test` (Vitest), `npm run build`.
   `tsconfig.tsbuildinfo` is tracked and changes on every build; commit it with
   your change.
@@ -67,6 +69,26 @@ anything.
 - The coach reply can end with a `forge-changes` JSON block (swap, sets, add,
   remove, rest). Each change is shown for approval; exercise and day names must
   match exactly.
+
+## Rest-timer notifications (`api/`, `src/lib/push.ts`)
+
+- A locked iPhone freezes the app, so a timer can't fire from the phone. When a
+  rest starts, the app POSTs to `api/rest-timer`, which asks QStash to call
+  `api/send-push` at the end time; that verifies QStash's signature and sends a
+  Web Push to the phone. `public/push-handler.js` (imported into the service
+  worker) shows it. Exactly one alert is kept scheduled per timer; skip, pause,
+  finish, discard and timer changes cancel or replace it. Leaving the workout
+  screen does not.
+- Vercel env vars needed: `VAPID_PRIVATE_KEY`, `QSTASH_TOKEN`,
+  `QSTASH_CURRENT_SIGNING_KEY`, `QSTASH_NEXT_SIGNING_KEY` (and `QSTASH_URL` if
+  Upstash gives one). The VAPID public key is in `api/_shared.ts`; changing the
+  key pair means every phone must turn alerts off and on again.
+  `GET /api/rest-timer` reports which are set (booleans only); Profile shows it.
+- iPhone rules: only for Home Screen apps, iOS 16.4+, and permission must be
+  requested from a tap (`enablePush` is called directly in tap handlers).
+- `web-push` v4 is ESM with named exports only: `import { sendNotification }`.
+- Files in `api/` starting with `_` are not deployed as functions. Tests in
+  `api/_functions.test.ts` verify signature checks and the encrypted push.
 
 ## Known gaps and ideas
 

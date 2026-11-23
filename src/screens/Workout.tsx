@@ -9,6 +9,7 @@ import { db } from '../db';
 import { EXERCISES, getExercise, hasEquipment, MUSCLE_LABEL } from '../data/exercises';
 import { exposuresFor, recommend, sessionVolume, warmupSets } from '../engine/progression';
 import { logChange, useActiveProgram, useActiveSession, useProfile, useSessions } from '../lib/data';
+import { cancelRestAlert, enablePush, isStandalone, permission, pushEnabled, pushSupported, scheduleRestAlert } from '../lib/push';
 import { fmtDate, fmtDuration, fmtNum, nowISO, uid } from '../lib/util';
 import type { ExerciseDef, LoggedSet, Session, SessionExercise } from '../types';
 
@@ -29,9 +30,29 @@ function useNow(ms = 1000) {
 }
 
 let audioCtx: AudioContext | undefined;
+/**
+ * iPhones only let a page play sound after a tap. Call this from tap handlers
+ * (logging a set, starting the timer) so the end-of-rest beep can play later.
+ */
+function primeAudio() {
+  try {
+    audioCtx ??= new AudioContext();
+    if (audioCtx.state === 'suspended') void audioCtx.resume();
+    // A silent, instant sound fully unlocks audio on iOS.
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    g.gain.value = 0;
+    o.connect(g).connect(audioCtx.destination);
+    o.start();
+    o.stop(audioCtx.currentTime + 0.01);
+  } catch {
+    /* ignore */
+  }
+}
 function beep() {
   try {
     audioCtx ??= new AudioContext();
+    if (audioCtx.state === 'suspended') void audioCtx.resume();
     const o = audioCtx.createOscillator();
     const g = audioCtx.createGain();
     o.frequency.value = 880;
@@ -106,6 +127,27 @@ export default function Workout() {
     }
   }, [restLeft, session?.restEndsAt, mutate]);
 
+  // Lock-screen notification for the end of rest. Keeps exactly one alert
+  // scheduled for the current timer; changing, skipping or pausing replaces
+  // or cancels it. Leaving the screen does not cancel it (you still want it).
+  const paused0 = !!session?.pausedAt;
+  const nextLabel = useMemo(() => {
+    if (!session) return '';
+    const ex = session.exercises.find((e) => e.sets.some((s) => s.status === 'pending'));
+    if (!ex) return 'Time for your next set.';
+    const work = ex.sets.filter((s) => s.kind === 'work');
+    const next = ex.sets.find((s) => s.status === 'pending')!;
+    const n = work.indexOf(next) + 1;
+    return `${getExercise(ex.exerciseId).name} · ${next.kind === 'warmup' ? 'warm-up set' : `set ${n} of ${work.length}`}`;
+  }, [session]);
+  const loaded = !!session;
+  useEffect(() => {
+    if (!loaded) return; // don't touch the alert until the workout has loaded
+    const at = session?.restEndsAt;
+    if (at && !paused0 && Date.parse(at) > Date.now() + 1000) void scheduleRestAlert(at, 'Rest’s over', `Next: ${nextLabel}`);
+    else void cancelRestAlert();
+  }, [loaded, session?.restEndsAt, paused0, nextLabel]); // eslint-disable-line react-hooks/exhaustive-deps
+
   if (!session || !history) return null;
 
   const paused = !!session.pausedAt;
@@ -114,8 +156,9 @@ export default function Workout() {
   const doneCount = allWork.filter((s) => s.status === 'done').length;
   const currentIdx = session.exercises.findIndex((e) => e.sets.some((s) => s.status === 'pending'));
 
-  const completeSet = (exId: string, setId: string) =>
-    mutate(
+  const completeSet = (exId: string, setId: string) => {
+    primeAudio();
+    return mutate(
       (s) => {
         const ex = s.exercises.find((e) => e.id === exId)!;
         const idx = ex.sets.findIndex((x) => x.id === setId);
@@ -143,6 +186,7 @@ export default function Workout() {
       },
       { undoable: true },
     )?.then(() => setToast({ msg: 'Set logged', undo: true }));
+  };
 
   const updateSet = (exId: string, setId: string, patch: Partial<LoggedSet>) =>
     mutate((s) => {
@@ -163,6 +207,7 @@ export default function Workout() {
 
   const finish = async () => {
     leaving.current = true;
+    void cancelRestAlert();
     await mutate((s) => {
       if (s.pausedAt) {
         s.pausedMs += Date.now() - new Date(s.pausedAt).getTime();
@@ -178,6 +223,7 @@ export default function Workout() {
   const discard = async () => {
     if (!confirm('Discard this workout? Nothing from it will be saved.')) return;
     leaving.current = true;
+    void cancelRestAlert();
     await db.sessions.delete(session.id);
     nav('/', { replace: true });
   };
@@ -327,7 +373,7 @@ export default function Workout() {
       )}
       {!session.restEndsAt && !paused && currentIdx >= 0 && (
         <div style={{ position: 'fixed', right: 16, bottom: 'calc(var(--safe-b) + 16px)', zIndex: 25 }}>
-          <button className="btn sm" style={{ height: 44, borderRadius: 22, boxShadow: '0 6px 20px rgba(0,0,0,.2)' }} onClick={() => mutate((s) => void (s.restEndsAt = new Date(Date.now() + (s.exercises[currentIdx]?.restSec ?? 90) * 1000).toISOString()))}>
+          <button className="btn sm" style={{ height: 44, borderRadius: 22, boxShadow: '0 6px 20px rgba(0,0,0,.2)' }} onClick={() => { primeAudio(); mutate((s) => void (s.restEndsAt = new Date(Date.now() + (s.exercises[currentIdx]?.restSec ?? 90) * 1000).toISOString())); }}>
             Rest timer
           </button>
         </div>
@@ -560,7 +606,29 @@ function ExerciseCard({
 
 function RestBar({ left, total, onAdjust, onSkip }: { left: number; total: number; onAdjust: (d: number) => void; onSkip: () => void }) {
   const over = left <= 0;
+  // Offer lock-screen alerts once, right where they're useful.
+  const [offer, setOffer] = useState(() => pushSupported() && isStandalone() && permission() === 'default' && !pushEnabled() && localStorage.getItem('forge.push.offerDismissed') !== '1');
+  const [offerMsg, setOfferMsg] = useState('');
   return (
+    <>
+    {offer && (
+      <div className="rest-offer">
+        <span className="grow">{offerMsg || 'Get a lock-screen alert when rest ends?'}</span>
+        {!offerMsg && (
+          <button
+            className="btn sm"
+            onClick={async () => {
+              const r = await enablePush();
+              if (r.ok) setOffer(false);
+              else setOfferMsg(r.reason);
+            }}
+          >
+            Turn on
+          </button>
+        )}
+        <button className="link-btn" style={{ fontSize: 14 }} onClick={() => { localStorage.setItem('forge.push.offerDismissed', '1'); setOffer(false); }}>{offerMsg ? 'OK' : 'Not now'}</button>
+      </div>
+    )}
     <div className="rest-bar" role="timer" aria-live="polite">
       <div>
         <div style={{ fontSize: 11, opacity: 0.7, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.05em' }}>{over ? 'Rest over' : 'Rest'}</div>
@@ -572,6 +640,7 @@ function RestBar({ left, total, onAdjust, onSkip }: { left: number; total: numbe
       <button onClick={onSkip}>Skip</button>
       <div className="prog"><i style={{ width: `${Math.max(0, Math.min(100, (1 - left / total) * 100))}%` }} /></div>
     </div>
+    </>
   );
 }
 

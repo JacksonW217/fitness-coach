@@ -211,6 +211,8 @@ textarea.input { min-height: 88px; }
 .ex-card.current .rec { background: var(--fill); border-color: transparent; }
 
 .rest-bar { position: fixed; left: 12px; right: 12px; bottom: calc(var(--safe-b) + 12px); z-index: 30; background: var(--accent); color: var(--on-accent); border-radius: 18px; padding: 10px 12px 10px 18px; display: flex; align-items: center; gap: 10px; max-width: 616px; margin: 0 auto; box-shadow: 0 10px 30px rgba(0,0,0,0.5); animation: up 0.25s ease; }
+.rest-offer { position: fixed; left: 12px; right: 12px; bottom: calc(var(--safe-b) + 84px); z-index: 30; max-width: 616px; margin: 0 auto; display: flex; align-items: center; gap: 10px; background: var(--fill-2); border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; font-size: 14px; box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
+.rest-offer .grow { flex: 1; }
 .rest-bar .t { font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; min-width: 72px; }
 .rest-bar button { background: rgba(255,255,255,0.18); border: none; color: var(--on-accent); height: 38px; border-radius: 10px; padding: 0 12px; font-weight: 600; font-size: 14px; }
 .rest-bar .prog { position: absolute; left: 18px; right: 18px; bottom: 4px; height: 2px; background: rgba(255,255,255,0.2); border-radius: 1px; overflow: hidden; }

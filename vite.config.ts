@@ -23,7 +23,7 @@ export default defineConfig({
           { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
-      workbox: { navigateFallback: '/index.html' },
+      workbox: { navigateFallback: '/index.html', navigateFallbackDenylist: [/^\/api\//], importScripts: ['push-handler.js'] },
     }),
   ],
   build: { chunkSizeWarningLimit: 800 },

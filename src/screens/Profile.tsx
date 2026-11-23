@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { RestAlerts } from '../components/RestAlerts';
 import { ListRow, Page, Section, Sheet } from '../components/ui';
 import { db, exportAll, importAll, wipeAll } from '../db';
 import { useProfile, useSessions, useWeights } from '../lib/data';
@@ -77,6 +78,10 @@ export default function ProfileScreen() {
           ))}
         </div>
         <p className="foot" style={{ margin: '8px 4px' }}>Changing answers doesn’t silently change your program. Rebuild it from the Program tab when you want it to reflect new answers.</p>
+      </Section>
+
+      <Section title="Workout alerts">
+        <RestAlerts />
       </Section>
 
       <Section title="Your data">
